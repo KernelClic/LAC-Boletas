@@ -20,7 +20,7 @@ public class Boleta {
     public ArrayList<String> drawRectangle(PdfContentByte canvas,
             float x, float y, float ancho, float alto,
             float margen, float espacio,
-            String titulo, String fecha, String valor, String msg1, String msg2, String msg3, String msg4, String msg5, String msg6, String msg7,
+            String titulo, String fecha, String valor, String msg1, String msg2, String msg3, String msg4, String msg5, String msg6, String msg7, String msg8, String msg9,
             int oportun,
             int colortexto,
             int marco,
@@ -53,9 +53,9 @@ public class Boleta {
    
         // marco interno boleta relleno por Premio imagen
         canvas.saveState();
-        pre.setAbsolutePosition(x + 78.0F, y + alto -140.0F );
-        pre.scaleAbsoluteWidth(175);
-        pre.scaleAbsoluteHeight(110);
+        pre.setAbsolutePosition(x + 10.0F, y + alto - 118.0F );
+        pre.scaleAbsoluteWidth(99);
+        pre.scaleAbsoluteHeight(80);
         canvas.addImage(pre);
         canvas.restoreState();
         
@@ -69,11 +69,17 @@ public class Boleta {
         if (oportun == 3) {
             QrString = stmpPrint.get(idx) + "-" + stmpPrint.get(idx + 1) + "-" + stmpPrint.get(idx + 2) ;//+ "-" + stmpPrint.get(idx + 3) + "-" + stmpPrint.get(idx + 4);
         }
+        if (oportun == 4) {
+            QrString = stmpPrint.get(idx) + "-" + stmpPrint.get(idx + 1) + "-" + stmpPrint.get(idx + 2) + "-" + stmpPrint.get(idx + 3);
+        }
+        if (oportun == 5) {
+            QrString = stmpPrint.get(idx) + "-" + stmpPrint.get(idx + 1) + "-" + stmpPrint.get(idx + 2) + "-" + stmpPrint.get(idx + 3) + "-" + stmpPrint.get(idx + 4);
+        }
 
         BarcodeQRCode my_code = new BarcodeQRCode(QrString, 1, 1, null);
         Image QRimage = my_code.getImage();
         canvas.saveState();
-        QRimage.setAbsolutePosition(x + ancho - 32, y + 2);
+        QRimage.setAbsolutePosition(x + ancho - 42, y + alto - 65);
         QRimage.scaleAbsoluteWidth(30);
         QRimage.scaleAbsoluteHeight(30);
         QRimage.setBorderColor(BaseColor.BLACK);
@@ -109,13 +115,13 @@ public class Boleta {
         // Titulo 
         canvas.setRGBColorFill(0, 0, 0);
         canvas.setFontAndSize(bf, 18.0F);
-        canvas.setTextMatrix(x + 80.0F, y + alto - 25.0F);        
+        canvas.setTextMatrix(x + 10.0F, y + alto - 25.0F);        
         canvas.showText(titulo);
         canvas.endText();
         canvas.restoreState();
         
         /// Generar colilla - nombres y telefono 
-        canvas.saveState();
+       /* canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
         canvas.setLineWidth(0.5F);
@@ -136,7 +142,7 @@ public class Boleta {
         canvas.showText("Teléfono: ____________________________");
         canvas.endText();        
         canvas.restoreState();
-        
+       
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
@@ -148,7 +154,9 @@ public class Boleta {
         canvas.showText(QrString);
         canvas.endText();        
         canvas.restoreState();
-        
+  */       
+/* 
+        imprimir linea vertical
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
@@ -160,7 +168,7 @@ public class Boleta {
         canvas.endText();        
         canvas.restoreState();
         //  **************************************************************
-        
+ */       
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
@@ -174,14 +182,14 @@ public class Boleta {
         // Texto Valor
         canvas.setLineWidth(0.7F);
         canvas.setFontAndSize(bf, 12.0F);
-        canvas.setTextMatrix(x + (ancho -45.0F) , y + alto - 20.0F);
-        canvas.showText("Valor");
+//        canvas.setTextMatrix(x + (ancho -45.0F) , y + alto - 20.0F);
+//        canvas.showText("Valor");
         // valor de la boleta 
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);   
         canvas.setLineWidth(0.7F);
-        canvas.setFontAndSize(bf, 16.0F);
-        canvas.setTextMatrix(x + (ancho -85.0F) , y + alto - 35.0F);
+        canvas.setFontAndSize(bf, 10.0F);
+        canvas.setTextMatrix(x + 155 , y + alto - 65.0F);
         canvas.showText(valor);
         canvas.endText();
         canvas.restoreState();
@@ -210,29 +218,34 @@ public class Boleta {
         }
         canvas.setRGBColorFill(0, 0, 0);
         canvas.setFontAndSize(bf, 8.0F);
-        canvas.setTextMatrix(x + ancho - 130.0F, y + alto - 72.0F);
+        canvas.setTextMatrix(x + 10.0F, y + alto - 35.0F);
         canvas.showText(msg1);
-        canvas.setTextMatrix(x + ancho - 130.0F, y + alto - 82.0F);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 45.0F);
         canvas.showText(msg2);
-        canvas.setTextMatrix(x + ancho - 130.0F, y + alto - 92.0F);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 55.0F);
         canvas.showText(msg3);
-        
-        canvas.setTextMatrix(x + ancho - 130.0F, y + alto - 112.0F);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 65.0F);
         canvas.showText(msg4);
-        canvas.setTextMatrix(x + ancho - 130.0F, y + alto - 122.0F);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 75.0F);
         canvas.showText(msg5);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 85.0F);
+        canvas.showText(msg6);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 95.0F);
+        canvas.showText(msg7);
+        canvas.setTextMatrix(x + 110.0F, y + alto - 105.0F);
+        canvas.showText(msg8);
+        
+        canvas.setTextMatrix(x + 110.0F, y + alto - 115.0F);
+        canvas.showText(msg9);
+        
         canvas.setRGBColorFill(0, 0, 0);
         canvas.setFontAndSize(bf, 10.0F);
 
-        canvas.setTextMatrix(x + ancho/5, y + alto - 152.0F);               
-        canvas.showText(msg6);
-        canvas.setTextMatrix(x + ancho/5, y + alto - 165.0F);
-        canvas.showText(msg7);
-
+        //fecha
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);   
         canvas.setFontAndSize(bf, 12.0F);        
-        canvas.setTextMatrix(x + ancho/5, y + alto - 179.0F);
+        canvas.setTextMatrix(x + 190, y + alto - 35.0F);
         canvas.showText(fecha);
                 
         canvas.endText();
@@ -263,35 +276,68 @@ public class Boleta {
         canvas.setLineWidth(0.8F);
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);
-        canvas.setFontAndSize(bf, 22.0F);
+        canvas.setFontAndSize(bf, 19.0F);
 
         if (oportun == 1) {
-            canvas.setTextMatrix(x + ancho - 85.0F, y + alto - 191.0F);
+            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
             canvas.showText(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx));
         }
 
         if (oportun == 2) {
-            canvas.setTextMatrix(x + ancho - 85.0F, y + alto - 191.0F);
+            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + ancho - 147.0F, y + alto - 191.0F);
+            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
             canvas.showText(stmpPrint.get(idx + 1));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
         }
         
         if (oportun == 3) {
-            canvas.setTextMatrix(x + ancho - 85.0F, y + alto - 191.0F);
+            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + ancho - 147.0F, y + alto - 191.0F);
+            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + ancho - 209.0F, y + alto - 191.0F);
+            canvas.setTextMatrix(x + 110.0F, y + alto - 135.0F);
             canvas.showText(stmpPrint.get(idx + 2));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
             impresos.add(stmpPrint.get(idx + 2));
         }
 
+    if (oportun == 4) {
+            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx));
+            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 1));
+            canvas.setTextMatrix(x + 110.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 2));
+            canvas.setTextMatrix(x + 160.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 3));
+            impresos.add(stmpPrint.get(idx));
+            impresos.add(stmpPrint.get(idx + 1));
+            impresos.add(stmpPrint.get(idx + 2));
+            impresos.add(stmpPrint.get(idx + 3));
+        }
+ 
+    if (oportun == 5) {
+            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx));
+            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 1));
+            canvas.setTextMatrix(x + 110.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 2));
+            canvas.setTextMatrix(x + 160.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 3));
+            canvas.setTextMatrix(x + 210.0F, y + alto - 135.0F);
+            canvas.showText(stmpPrint.get(idx + 4));
+            impresos.add(stmpPrint.get(idx));
+            impresos.add(stmpPrint.get(idx + 1));
+            impresos.add(stmpPrint.get(idx + 2));
+            impresos.add(stmpPrint.get(idx + 3));
+            impresos.add(stmpPrint.get(idx + 4));
+        }
+        
         canvas.endText();
         canvas.restoreState();
         return impresos;

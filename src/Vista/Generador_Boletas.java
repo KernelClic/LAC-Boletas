@@ -31,8 +31,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
      * Creates new form Generador_Boletas
      */
     private final int MAXNUMBER = 10000;
-    private final int MAXFIL = 3;
-    private final int MAXCOL = 2;
+    private final int MAXFIL = 4;
+    private final int MAXCOL = 3;
 
     private String formatearNumero(int numero, int cif) {
         String tmp_num = String.valueOf(numero);
@@ -220,7 +220,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
         SimpleDateFormat objSDF2 = new SimpleDateFormat(strDateFormatFile);
         txtFilePDF.setText(objSDF2.format(objDate) + ".pdf");
         txtImagen.setText(AccesoAleatorio.getRutaImagenes()+"/Estrellas_3.jpeg");
-        txtPremio.setText(AccesoAleatorio.getRutaImagenes()+"/Amarillo.jpeg");
+        txtPremio.setText(AccesoAleatorio.getRutaImagenes()+"/Premio.jpeg");
 
         String path = this.txtImagen.getText();
         String pathPremio = this.txtPremio.getText();
@@ -239,12 +239,15 @@ public class Generador_Boletas extends javax.swing.JFrame {
         int totpag = filas;
 
         xi = 5;
-        yi = 407;
-        paso_x = 391;
-        paso_y = 201;
-        ancho = 390;
-        alto = 200;
-
+        yi = 440;
+        paso_x = 261;
+        paso_y = 146;
+ //       ancho = 390;
+ //       alto = 200;
+        ancho = 260;
+        alto = 145;
+        
+        
         // Ajustar la Lista 
         for (int i = 0; i < opor; i++) {
             stmpPrint.add("####");
@@ -307,7 +310,9 @@ public class Generador_Boletas extends javax.swing.JFrame {
                             x, y, ancho, alto,
                             5, 5,
                             txtTitulo.getText(), txtFecha.getText(), txtVlrBoleta.getText(),
-                            txtMensaje1.getText(), txtMensaje2.getText(), txtMensaje3.getText(), txtMensaje4.getText(), txtMensaje5.getText(), txtMensaje6.getText(), txtMensaje7.getText(),
+                            txtMensaje1.getText(), txtMensaje2.getText(), txtMensaje3.getText(), 
+                            txtMensaje4.getText(), txtMensaje5.getText(), txtMensaje6.getText(), 
+                            txtMensaje7.getText(),txtMensaje8.getText(), txtMensaje9.getText(), 
                             opor,
                             color,
                             marco,
@@ -387,6 +392,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
         jLabel19 = new javax.swing.JLabel();
         txtPremio = new javax.swing.JTextField();
         btnFondo2 = new javax.swing.JButton();
+        txtMensaje8 = new javax.swing.JTextField();
+        jLabel20 = new javax.swing.JLabel();
+        jLabel21 = new javax.swing.JLabel();
+        txtMensaje9 = new javax.swing.JTextField();
         jPanel2 = new javax.swing.JPanel();
         jPanel3 = new javax.swing.JPanel();
         lblImagen = new javax.swing.JLabel();
@@ -454,37 +463,37 @@ public class Generador_Boletas extends javax.swing.JFrame {
             }
         });
 
-        txtMensaje1.setText("Caducidad un (1) dia");
+        txtMensaje1.setText("El APORTE lo hace participe en el sorteo del dia ");
 
-        txtMensaje2.setText("No se paga el bono si presenta ");
+        txtMensaje2.setText("Responsable : ");
         txtMensaje2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtMensaje2ActionPerformed(evt);
             }
         });
 
-        txtMensaje3.setText("Alteraciones o Perforaciones.");
+        txtMensaje3.setText("XXX XXX XXXXX");
 
-        txtMensaje4.setText("Documentacion / Transferencia");
+        txtMensaje4.setText("APORTE ");
 
         jLabel14.setText("Mensaje No. 4");
 
         jLabel16.setText("Mensaje No. 5");
 
-        txtMensaje5.setText("e impuestos a cargo del ganador");
+        txtMensaje5.setText("Caducidad Cinco (5) Dias para reclamar");
 
         jLabel17.setText("Mensaje No. 6");
 
-        txtMensaje6.setText("Sorteo con ");
+        txtMensaje6.setText("PAGADERO AL PORTADOR");
 
         jLabel18.setText("Mensaje No. 7");
 
-        txtMensaje7.setText("La Loteria del Cauca");
+        txtMensaje7.setText("Bono sin Cancelar no participa");
 
         jLabel7.setText("Imagen de Fondo");
 
         txtImagen.setEditable(false);
-        txtImagen.setText("/home/oracle/NetbeansProjects/Boletas/img/Estrellas_3.jpeg");
+        txtImagen.setText("/Boletas/Imagenes/Estrellas_3.jpeg");
 
         btnFondo.setText("Fondo");
         btnFondo.addActionListener(new java.awt.event.ActionListener() {
@@ -496,7 +505,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
         jLabel19.setText("Imagen de Premio");
 
         txtPremio.setEditable(false);
-        txtPremio.setText("/home/oracle/NetbeansProjects/Boletas/img/Estrellas_3.jpeg");
+        txtPremio.setText("/Boletas/Imagenes/Premio.jpeg");
 
         btnFondo2.setText("Premio");
         btnFondo2.addActionListener(new java.awt.event.ActionListener() {
@@ -504,6 +513,14 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 btnFondo2ActionPerformed(evt);
             }
         });
+
+        txtMensaje8.setText("Adulterada o Cercenada no participa");
+
+        jLabel20.setText("Mensaje No. 8");
+
+        jLabel21.setText("Mensaje No. 9");
+
+        txtMensaje9.setText("Generando empleo en paz de Ariporó");
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -515,19 +532,28 @@ public class Generador_Boletas extends javax.swing.JFrame {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                         .addGap(0, 0, Short.MAX_VALUE)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                .addComponent(jLabel7)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(txtImagen, javax.swing.GroupLayout.PREFERRED_SIZE, 455, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btnFondo, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                                .addComponent(jLabel19)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(txtPremio, javax.swing.GroupLayout.PREFERRED_SIZE, 455, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btnFondo2, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(78, 78, 78))
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                    .addComponent(jLabel7)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                    .addComponent(txtImagen, javax.swing.GroupLayout.PREFERRED_SIZE, 455, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(btnFondo, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                    .addComponent(jLabel19)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(txtPremio, javax.swing.GroupLayout.PREFERRED_SIZE, 455, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(btnFondo2, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(jLabel20)
+                                .addGap(29, 29, 29)
+                                .addComponent(txtMensaje8, javax.swing.GroupLayout.PREFERRED_SIZE, 595, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(jLabel21)
+                                .addGap(29, 29, 29)
+                                .addComponent(txtMensaje9, javax.swing.GroupLayout.PREFERRED_SIZE, 595, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(70, 70, 70))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel1)
@@ -539,7 +565,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                             .addComponent(jLabel16)
                             .addComponent(jLabel17)
                             .addComponent(jLabel18))
-                        .addGap(26, 26, 26)
+                        .addGap(29, 29, 29)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                                 .addGroup(jPanel1Layout.createSequentialGroup()
@@ -605,7 +631,15 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txtMensaje7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel18))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 20, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(txtMensaje8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel20))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(txtMensaje9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel21))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 27, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel7)
                     .addComponent(txtImagen, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -615,10 +649,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
                     .addComponent(jLabel19)
                     .addComponent(txtPremio, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btnFondo2))
-                .addContainerGap(21, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 6, 730, 370));
+        getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 6, 730, 430));
 
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
@@ -1001,7 +1035,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
             if (Integer.parseInt(this.txtOportunidades.getText()) >= 0 && Integer.parseInt(this.txtOportunidades.getText()) <= 5) {
                 this.generarNumerosAleatorios(Integer.parseInt(this.txtOportunidades.getText()));
             } else {
-                JOptionPane.showMessageDialog(this, "Digite Nro Oportunidades entre [3. 4 ó 5]", "Informacion", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Digite Nro Oportunidades entre [3, 4 ó 5]", "Informacion", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (FileNotFoundException | BadElementException ex) {
             Logger.getLogger(Generador_Boletas.class.getName()).log(Level.SEVERE, null, ex);
@@ -1150,6 +1184,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel18;
     private javax.swing.JLabel jLabel19;
     private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel20;
+    private javax.swing.JLabel jLabel21;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
@@ -1186,6 +1222,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
     private javax.swing.JTextField txtMensaje5;
     private javax.swing.JTextField txtMensaje6;
     private javax.swing.JTextField txtMensaje7;
+    private javax.swing.JTextField txtMensaje8;
+    private javax.swing.JTextField txtMensaje9;
     private javax.swing.JTextField txtNumCifra1;
     private javax.swing.JTextField txtNumCifra2;
     private javax.swing.JTextField txtNumCifra3;
