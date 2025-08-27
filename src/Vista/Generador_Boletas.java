@@ -255,10 +255,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         //si tiene Marco o nó
         int marco = 0;
-        if (jMarcoSi.isSelected()) {
+       /* if (jMarcoSi.isSelected()) {
             marco = 1;
         }
-
+*/
         // Seleccionar el color 
         int color = 0;
 
@@ -430,9 +430,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
         txtNumCifra3 = new javax.swing.JTextField();
         C301 = new javax.swing.JRadioButton();
         C302 = new javax.swing.JRadioButton();
-        jLabel15 = new javax.swing.JLabel();
-        jMarcoSi = new javax.swing.JRadioButton();
-        jMarcoNo = new javax.swing.JRadioButton();
         jLabel11 = new javax.swing.JLabel();
         txtFilePDF = new javax.swing.JTextField();
         btnFondo1 = new javax.swing.JButton();
@@ -714,7 +711,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
         jLabel8.setFont(new java.awt.Font("Cantarell", 1, 15)); // NOI18N
         jLabel8.setText("Oportunidades");
 
-        txtOportunidades.setText("3");
+        txtOportunidades.setText("10");
         txtOportunidades.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 txtOportunidadesActionPerformed(evt);
@@ -912,16 +909,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         jTabbedPane1.addTab("3 Cifras", jPanel8);
 
-        jLabel15.setFont(new java.awt.Font("Cantarell", 1, 15)); // NOI18N
-        jLabel15.setText("Marco");
-
-        bgMarco.add(jMarcoSi);
-        jMarcoSi.setText("Si");
-
-        bgMarco.add(jMarcoNo);
-        jMarcoNo.setSelected(true);
-        jMarcoNo.setText("No");
-
         jLabel11.setText("Documento PDF");
 
         txtFilePDF.setEditable(false);
@@ -951,23 +938,18 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                 .addComponent(jLabel11)))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jRBcafe)
-                            .addComponent(jRBnegro)
-                            .addComponent(jRBverde)
-                            .addComponent(jRBvioleta)
-                            .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addComponent(jLabel10)
-                                .addGap(38, 38, 38)
-                                .addComponent(jLabel15))
                             .addComponent(btnFondo1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addGroup(jPanel5Layout.createSequentialGroup()
                                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jRBrojo)
-                                    .addComponent(jRBazul))
-                                .addGap(57, 57, 57)
-                                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jMarcoNo)
-                                    .addComponent(jMarcoSi)))))
+                                    .addComponent(jRBcafe)
+                                    .addComponent(jRBnegro)
+                                    .addComponent(jRBverde)
+                                    .addComponent(jRBvioleta)
+                                    .addComponent(jLabel10)
+                                    .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jRBrojo)
+                                        .addComponent(jRBazul)))
+                                .addGap(81, 81, 81))))
                     .addComponent(txtFilePDF, javax.swing.GroupLayout.PREFERRED_SIZE, 318, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
@@ -977,33 +959,25 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 .addContainerGap()
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel5Layout.createSequentialGroup()
-                        .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jLabel10)
-                            .addComponent(jLabel15))
+                        .addComponent(jLabel10)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addComponent(jRBrojo)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jRBazul)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jRBvioleta)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jRBverde)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jRBnegro)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jRBcafe))
-                            .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addComponent(jMarcoSi)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jMarcoNo))))
+                        .addComponent(jRBrojo)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRBazul)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRBvioleta)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRBverde)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRBnegro)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jRBcafe))
                     .addGroup(jPanel5Layout.createSequentialGroup()
                         .addComponent(jLabel8)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(txtOportunidades, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 229, Short.MAX_VALUE)))
+                        .addComponent(jTabbedPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 232, Short.MAX_VALUE)))
                 .addGap(12, 12, 12)
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnFondo1)
@@ -1032,10 +1006,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
         txtFilePDF.setText(objSDF2.format(objDate) + ".pdf");
 
         try {
-            if (Integer.parseInt(this.txtOportunidades.getText()) >= 0 && Integer.parseInt(this.txtOportunidades.getText()) <= 5) {
+            if (Integer.parseInt(this.txtOportunidades.getText()) >= 0 && Integer.parseInt(this.txtOportunidades.getText()) <= 10) {
                 this.generarNumerosAleatorios(Integer.parseInt(this.txtOportunidades.getText()));
             } else {
-                JOptionPane.showMessageDialog(this, "Digite Nro Oportunidades entre [3, 4 ó 5]", "Informacion", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Digite Nro Oportunidades entre [3 y 10]", "Informacion", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (FileNotFoundException | BadElementException ex) {
             Logger.getLogger(Generador_Boletas.class.getName()).log(Level.SEVERE, null, ex);
@@ -1178,7 +1152,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel12;
     private javax.swing.JLabel jLabel13;
     private javax.swing.JLabel jLabel14;
-    private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel16;
     private javax.swing.JLabel jLabel17;
     private javax.swing.JLabel jLabel18;
@@ -1193,8 +1166,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
     private javax.swing.JLabel jLabel9;
-    private javax.swing.JRadioButton jMarcoNo;
-    private javax.swing.JRadioButton jMarcoSi;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
