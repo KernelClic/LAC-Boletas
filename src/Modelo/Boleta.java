@@ -255,18 +255,31 @@ public class Boleta {
         
         if (marco == 1) {
             if (oportun == 1) {
-                canvas.rectangle(x + ancho -90.0F, y + alto - 193.0F, 60.0F, 20.0F);
+                canvas.rectangle(x + 9.0F, y + alto - 137.0F, 44.0F, 18.0F);
             }
-
             if (oportun == 2) {
-                canvas.rectangle(x + ancho -90.0F, y + alto - 193.0F, 60.0F, 20.0F);
-                canvas.rectangle(x + ancho -152.0F, y + alto - 193.0F, 60.0F, 20.0F);            }
-
-            if (oportun == 3) {
-                canvas.rectangle(x + ancho -90.0F, y + alto - 193.0F, 60.0F, 20.0F);
-                canvas.rectangle(x + ancho -152.0F, y + alto - 193.0F, 60.0F, 20.0F);
-                canvas.rectangle(x + ancho -214.0F, y + alto - 193.0F, 60.0F, 20.0F);                
+                canvas.rectangle(x + 9.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 59.0F, y + alto - 137.0F, 44.0F, 18.0F);
             }
+            if (oportun == 3) {
+                canvas.rectangle(x + 9.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 59.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 109.0F, y + alto - 137.0F, 44.0F, 18.0F);
+            }
+            if (oportun == 4) {
+                canvas.rectangle(x + 9.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 59.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 109.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 159.0F, y + alto - 137.0F, 44.0F, 18.0F);
+            }
+            if (oportun == 5) {
+                canvas.rectangle(x + 9.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 59.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 109.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 159.0F, y + alto - 137.0F, 44.0F, 18.0F);
+                canvas.rectangle(x + 209.0F, y + alto - 137.0F, 44.0F, 18.0F);
+            }
+            
         }
         canvas.fillStroke();
         canvas.restoreState();

@@ -3,10 +3,8 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/home/oracle/ssipc/00_LAC_BINGO/00_GitHub/Boletas/Boletas/Bingo_Boletas_v5/src/Vista/Generador_Boletas.java</file>
-            <file>file:/home/oracle/ssipc/00_LAC_BINGO/00_GitHub/Boletas/Boletas/Bingo_Boletas_v5/src/Controlador/AccesoAleatorio.java</file>
-            <file>file:/home/oracle/ssipc/00_LAC_BINGO/00_GitHub/Boletas/Boletas/Bingo_Boletas_v5/src/Controlador/ConectorSqlite.java</file>
-            <file>file:/home/oracle/ssipc/00_LAC_BINGO/00_GitHub/Boletas/Boletas/Bingo_Boletas_v5/src/Modelo/Boleta.java</file>
+            <file>file:/home/JSanchez/Documentos/KC/00_LAC_BINGO/00_GitHub/Boletas/Boletas/LAC_Boletas/src/Modelo/Boleta.java</file>
+            <file>file:/home/JSanchez/Documentos/KC/00_LAC_BINGO/00_GitHub/Boletas/Boletas/LAC_Boletas/src/Vista/Generador_Boletas.java</file>
         </group>
     </open-files>
 </project-private>
