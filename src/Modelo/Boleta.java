@@ -29,7 +29,11 @@ public class Boleta {
             throws DocumentException, IOException {
 
         ArrayList<String> impresos = new ArrayList<>();
-        String QrString = null;
+                String QrString = null;
+
+        float scaleX = ancho / 260.0f;
+        float scaleY = alto / 145.0f;
+        float scaleFont = Math.min(scaleX, scaleY);
 
         canvas.saveState();
         canvas.setGrayFill(0.9F);
@@ -53,9 +57,9 @@ public class Boleta {
    
         // marco interno boleta relleno por Premio imagen
         canvas.saveState();
-        pre.setAbsolutePosition(x + 10.0F, y + alto - 110.0F );
-        pre.scaleAbsoluteWidth(99);
-        pre.scaleAbsoluteHeight(80);
+        pre.setAbsolutePosition(x + 10.0F * scaleX, y + alto - 110.0F * scaleY );
+        pre.scaleAbsoluteWidth(99 * scaleX);
+        pre.scaleAbsoluteHeight(80 * scaleY);
         canvas.addImage(pre);
         canvas.restoreState();
         
@@ -95,9 +99,9 @@ public class Boleta {
         BarcodeQRCode my_code = new BarcodeQRCode(QrString, 1, 1, null);
         Image QRimage = my_code.getImage();
         canvas.saveState();
-        QRimage.setAbsolutePosition(x + ancho - 42, y + alto - 65);
-        QRimage.scaleAbsoluteWidth(30);
-        QRimage.scaleAbsoluteHeight(30);
+        QRimage.setAbsolutePosition(x + ancho - 42 * scaleX, y + alto - 65 * scaleY);
+        QRimage.scaleAbsoluteWidth(30 * scaleFont);
+        QRimage.scaleAbsoluteHeight(30 * scaleFont);
         QRimage.setBorderColor(BaseColor.BLACK);
         canvas.addImage(QRimage);
         canvas.restoreState();
@@ -130,8 +134,8 @@ public class Boleta {
         
         // Titulo 
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 18.0F);
-        canvas.setTextMatrix(x + 10.0F, y + alto - 25.0F);        
+        canvas.setFontAndSize(bf, 18.0F * scaleFont);
+        canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 25.0F * scaleY);        
         canvas.showText(titulo);
         canvas.endText();
         canvas.restoreState();
@@ -204,8 +208,8 @@ public class Boleta {
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);   
         canvas.setLineWidth(0.7F);
-        canvas.setFontAndSize(bf, 10.0F);
-        canvas.setTextMatrix(x + 155 , y + alto - 65.0F);
+        canvas.setFontAndSize(bf, 10.0F * scaleFont);
+        canvas.setTextMatrix(x + 155 * scaleX, y + alto - 65.0F * scaleY);
         canvas.showText(valor);
         canvas.endText();
         canvas.restoreState();
@@ -233,25 +237,25 @@ public class Boleta {
             canvas.setRGBColorStroke(0, 0, 0);
         }
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 8.0F);
-        canvas.setTextMatrix(x + 10.0F, y + alto - 35.0F);
+        canvas.setFontAndSize(bf, 8.0F * scaleFont);
+        canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 35.0F * scaleY);
         canvas.showText(msg1);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 45.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 45.0F * scaleY);
         canvas.showText(msg2);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 55.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 55.0F * scaleY);
         canvas.showText(msg3);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 65.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 65.0F * scaleY);
         canvas.showText(msg4);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 75.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 75.0F * scaleY);
         canvas.showText(msg5);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 85.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 85.0F * scaleY);
         canvas.showText(msg6);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 95.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 95.0F * scaleY);
         canvas.showText(msg7);
-        canvas.setTextMatrix(x + 110.0F, y + alto - 105.0F);
+        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 105.0F * scaleY);
         canvas.showText(msg8);
         
-        //canvas.setTextMatrix(x + 110.0F, y + alto - 115.0F);
+        //canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 115.0F * scaleY);
         //canvas.showText(msg9);
         
         canvas.setRGBColorFill(0, 0, 0);
@@ -260,8 +264,8 @@ public class Boleta {
         //fecha
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);   
-        canvas.setFontAndSize(bf, 12.0F);        
-        canvas.setTextMatrix(x + 190, y + alto - 35.0F);
+        canvas.setFontAndSize(bf, 12.0F * scaleFont);        
+        canvas.setTextMatrix(x + 190 * scaleX, y + alto - 35.0F * scaleY);
         canvas.showText(fecha);
                 
         canvas.endText();
@@ -317,29 +321,29 @@ public class Boleta {
         canvas.setLineWidth(0.8F);
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);
-        canvas.setFontAndSize(bf, 16.3F);
+        canvas.setFontAndSize(bf, Math.max(12.0F, 18.0F * scaleFont));
 
         if (oportun == 1) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx));
         }
 
         if (oportun == 2) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
         }
         
         if (oportun == 3) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -347,13 +351,13 @@ public class Boleta {
         }
 
     if (oportun == 4) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -362,15 +366,15 @@ public class Boleta {
         }
  
     if (oportun == 5) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 135.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 135.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 4));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -380,17 +384,17 @@ public class Boleta {
         }
  
     if (oportun == 6) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 4));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 5));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -401,19 +405,19 @@ public class Boleta {
         }
 
     if (oportun == 7) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 4));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 5));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 6));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -426,21 +430,21 @@ public class Boleta {
                 
 
     if (oportun == 8) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 4));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 5));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 6));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 7));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -454,23 +458,23 @@ public class Boleta {
                 
 
     if (oportun == 9) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 4));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 5));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 6));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 7));            
-            canvas.setTextMatrix(x + 60.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 8));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -484,25 +488,25 @@ public class Boleta {
         }
 
     if (oportun == 10) {
-            canvas.setTextMatrix(x + 10.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx));
-            canvas.setTextMatrix(x + 60.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 1));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 2));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 3));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 122.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 122.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 4));
-            canvas.setTextMatrix(x + 210.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 210.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 5));
-            canvas.setTextMatrix(x + 160.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 160.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 6));
-            canvas.setTextMatrix(x + 110.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 7));            
-            canvas.setTextMatrix(x + 60.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 60.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 8));
-            canvas.setTextMatrix(x + 10.0F, y + alto - 139.0F);
+            canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 139.0F * scaleY);
             canvas.showText(stmpPrint.get(idx + 9));
             impresos.add(stmpPrint.get(idx));
             impresos.add(stmpPrint.get(idx + 1));
@@ -523,6 +527,9 @@ public class Boleta {
         return impresos;
     }
 
+        
+
+    
     public void nrosFaltantes(PdfContentByte canvas, ArrayList<String> nFatantes)
             throws DocumentException, IOException {
 
