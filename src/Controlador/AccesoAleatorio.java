@@ -2,7 +2,7 @@ package Controlador;
 
 import java.io.*;
 import Modelo.*;
-import java.util.Date;
+import java.util.Calendar;
 
 public class AccesoAleatorio {
 
@@ -38,10 +38,9 @@ public class AccesoAleatorio {
 
     public static boolean getLicencia() {
         File fichero = null;
-        Date fecha = new Date();
-        int dia, mes;
-        dia = fecha.getDay();
-        mes = fecha.getMonth();
+        Calendar cal = Calendar.getInstance();
+        int dia = cal.get(Calendar.DAY_OF_MONTH);
+        int mes = cal.get(Calendar.MONTH) + 1; // Calendar.MONTH empieza en 0
         if (mes >= 3) {
             if (dia > 15) {
                 if (isWindows()) {
@@ -161,7 +160,6 @@ public class AccesoAleatorio {
     }
 
     private static int buscarRegistroInactivo() throws IOException {
-        String nombre;
         for (int i = 0; i < getNumeroRegistros(); i++) {
             flujo.seek(i * tamañoRegistro);
             if (!getTabla(i).isActivo()) {
@@ -218,11 +216,11 @@ public class AccesoAleatorio {
         if (i >= 0 && i <= getNumeroRegistros()) {
             flujo.seek(i * tamañoRegistro);
             return new Tabla(flujo.readInt(), flujo.readBoolean(),
-                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), //B
-                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), //I
-                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), //N
-                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), //G
-                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt());//O
+                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), // B
+                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), // I
+                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), // N
+                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), // G
+                    flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt(), flujo.readInt());// O
         } else {
             System.out.println("\nNúmero de registro fuera de límites.");
             return null;
