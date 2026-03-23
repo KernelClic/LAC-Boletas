@@ -5,15 +5,24 @@
  */
 package Modelo;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Image;
-import com.itextpdf.text.pdf.BarcodeQRCode;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.PdfContentByte;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import javax.imageio.ImageIO;
 
 public class Boleta {
 
@@ -25,7 +34,7 @@ public class Boleta {
             int oportun,
             int colortexto,
             ArrayList<String> stmpPrint, int idx,
-            Image img, Image pre, String uuidAPI, String codSorteo, String numeroBoleta)
+            Image img, Image pre, String qrInfoContent, String qrPremioContent, String codSorteo, String numeroBoleta)
             throws DocumentException, IOException {
 
         ArrayList<String> impresos = new ArrayList<>();
@@ -56,42 +65,12 @@ public class Boleta {
 
         // marco interno boleta relleno por Premio imagen
         canvas.saveState();
-        pre.setAbsolutePosition(x + 10.0F * scaleX, y + alto - 110.0F * scaleY);
-        pre.scaleAbsoluteWidth(99 * scaleX);
+        pre.setAbsolutePosition(x + 44.0F * scaleX, y + alto - 110.0F * scaleY);
+        pre.scaleAbsoluteWidth(66 * scaleX);
         pre.scaleAbsoluteHeight(80 * scaleY);
         canvas.addImage(pre);
         canvas.restoreState();
 
-        BarcodeQRCode my_code = new BarcodeQRCode(
-                "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/qr/consultar/" + uuidAPI, 1, 1, null);
-        Image QRimage = my_code.getImage();
-        canvas.saveState();
-        QRimage.setAbsolutePosition(x + ancho - 42 * scaleX, y + alto - 65 * scaleY);
-        QRimage.scaleAbsoluteWidth(30 * scaleFont);
-        QRimage.scaleAbsoluteHeight(30 * scaleFont);
-        QRimage.setBorderColor(BaseColor.BLACK);
-        canvas.addImage(QRimage);
-        canvas.restoreState();
-
-        // Imprimir código de sorteo y boleta debajo del QR
-        if (codSorteo != null && !codSorteo.isEmpty()) {
-            canvas.saveState();
-            BaseFont bfSorteo = BaseFont.createFont();
-            canvas.beginText();
-            canvas.setTextRenderingMode(2);
-            canvas.setLineWidth(0.5F);
-            canvas.setRGBColorStroke(0, 0, 0);
-            canvas.setRGBColorFill(0, 0, 0);
-            canvas.setFontAndSize(bfSorteo, 6.0F * scaleFont);
-            // Sorteo en la posición original
-            canvas.setTextMatrix(x + ancho - 45 * scaleX, y + alto - 10 * scaleY);
-            canvas.showText("Sorteo: " + codSorteo);
-            // Boleta un poco más abajo
-            canvas.setTextMatrix(x + ancho - 45 * scaleX, y + alto - 16 * scaleY);
-            canvas.showText("Boleta: " + (numeroBoleta != null ? numeroBoleta : "N/A"));
-            canvas.endText();
-            canvas.restoreState();
-        }
         canvas.saveState();
         BaseFont bf = BaseFont.createFont();
 
@@ -507,7 +486,86 @@ public class Boleta {
 
         canvas.endText();
         canvas.restoreState();
+
+        // ── QR codes: dibujados AL FINAL, encima de todos los demás elementos ──
+        // Contenido: QR Izquierda = mensaje del premio  |  QR Derecha = números de oportunidades
+        float qrSize = 35 * scaleFont;
+        float qrY    = y + alto - 100 * scaleY;   // base: y+45 para alto=145
+        float qrBgPad = 2 * scaleFont;             // padding del fondo blanco
+
+        // QR Premio (IZQUIERDA) con fondo blanco
+        float qrPremioX = x + 5 * scaleX;
+        try {
+            canvas.saveState();
+            canvas.setColorFill(BaseColor.WHITE);
+            canvas.rectangle(qrPremioX - qrBgPad, qrY - qrBgPad,
+                             qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+            canvas.fill();
+            canvas.restoreState();
+
+            Image qrPremioImg = generarQRImage(qrPremioContent, qrSize);
+            qrPremioImg.setAbsolutePosition(qrPremioX, qrY);
+            canvas.saveState();
+            canvas.addImage(qrPremioImg);
+            canvas.restoreState();
+        } catch (Exception e) {
+            System.err.println("[QR] Error QR Premio: " + e.getMessage());
+        }
+
+        // QR Info (DERECHA) con fondo blanco
+        float qrInfoX = x + ancho - 40 * scaleX;
+        try {
+            canvas.saveState();
+            canvas.setColorFill(BaseColor.WHITE);
+            canvas.rectangle(qrInfoX - qrBgPad, qrY - qrBgPad,
+                             qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+            canvas.fill();
+            canvas.restoreState();
+
+            Image qrInfoImg = generarQRImage(qrInfoContent, qrSize);
+            qrInfoImg.setAbsolutePosition(qrInfoX, qrY);
+            canvas.saveState();
+            canvas.addImage(qrInfoImg);
+            canvas.restoreState();
+        } catch (Exception e) {
+            System.err.println("[QR] Error QR Info: " + e.getMessage());
+        }
+
         return impresos;
+    }
+
+    /**
+     * Genera un QR code usando ZXing a 200×200px nativos, exportado como PNG
+     * y cargado como imagen iText. Esto garantiza módulos nítidos al imprimir.
+     *
+     * @param content    texto a codificar
+     * @param sizePoints tamaño en puntos PDF del QR en el documento
+     */
+    private static Image generarQRImage(String content, float sizePoints) throws Exception {
+        Map<EncodeHintType, Object> hints = new HashMap<>();
+        hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
+        hints.put(EncodeHintType.MARGIN, 2);          // quiet zone: 2 módulos
+        hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
+
+        QRCodeWriter writer = new QRCodeWriter();
+        int px = 200; // resolución nativa: 200×200px
+        BitMatrix matrix = writer.encode(content, BarcodeFormat.QR_CODE, px, px, hints);
+
+        // Convertir BitMatrix → BufferedImage RGB
+        BufferedImage bimg = new BufferedImage(px, px, BufferedImage.TYPE_INT_RGB);
+        for (int xi = 0; xi < px; xi++) {
+            for (int yi = 0; yi < px; yi++) {
+                bimg.setRGB(xi, yi, matrix.get(xi, yi) ? 0x000000 : 0xFFFFFF);
+            }
+        }
+
+        // Exportar como PNG en memoria → iText Image (evita interpolación)
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(bimg, "PNG", baos);
+        Image img = Image.getInstance(baos.toByteArray());
+        img.setInterpolation(false);          // escalar sin suavizado = módulos nítidos
+        img.scaleAbsolute(sizePoints, sizePoints);
+        return img;
     }
 
     public void nrosFaltantes(PdfContentByte canvas, ArrayList<String> nFatantes)

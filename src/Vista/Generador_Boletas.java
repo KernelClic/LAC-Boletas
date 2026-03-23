@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
 import Controlador.AccesoAleatorio;
-import Controlador.PlazaCloudService;
+
 import com.itextpdf.text.BadElementException;
 import com.itextpdf.text.PageSize;
 import java.util.ArrayList;
@@ -40,40 +40,9 @@ import java.awt.Dimension;
  */
 public class Generador_Boletas extends javax.swing.JFrame {
 
-        // ── Plaza y Sorteo (dinámicos desde la nube) ──
-        private int idPlazaNube = -1;
-        private int idSorteoActual = -1;
-        private String nombrePlaza = "";
-        private String codSorteoTexto = "";
-        private PlazaCloudService plazaService;
-
-        // ── UI extra: plaza, sorteo, rangos de premio ──
-        private JTextField txtPlazaNombre;
-        private JTextField txtCodSorteo;
+        // ── Rangos de premio (local) ──
         private JTable tblRangos;
         private DefaultTableModel modeloRangos;
-        private javax.swing.JTextArea txtLog; // Req 7: Trazabilidad
-
-        // ── Req 7: Redirección de consola a JTextArea ──
-        private class LogRedirector extends java.io.OutputStream {
-                private javax.swing.JTextArea textArea;
-
-                public LogRedirector(javax.swing.JTextArea textArea) {
-                        this.textArea = textArea;
-                }
-
-                @Override
-                public void write(int b) throws IOException {
-                        textArea.append(String.valueOf((char) b));
-                        textArea.setCaretPosition(textArea.getDocument().getLength());
-                }
-
-                @Override
-                public void write(byte[] b, int off, int len) throws IOException {
-                        textArea.append(new String(b, off, len));
-                        textArea.setCaretPosition(textArea.getDocument().getLength());
-                }
-        }
 
         /**
          * Creates new form Generador_Boletas
@@ -82,8 +51,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private final int MAXFIL = 4;
         private final int MAXCOL = 3;
 
-        // Sincronizador cloud (campo de instancia para reutilizarlo en syncNow)
-        private Controlador.BoletaCloudSync cloudSync;
 
         private ImageIcon iconEscalada(String path, int w, int h) {
                 ImageIcon orig = new ImageIcon(path);
@@ -293,19 +260,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 lblImagen.setIcon(iconEscalada(path, 220, 185));
                 lblImagen1.setIcon(iconEscalada(pathPremio, 225, 185));
 
-                // ── Inicializar panel de Plaza, Sorteo y Rangos ──
+                // ── Inicializar panel de Rangos de Premio ──
                 inicializarPanelPlazaSorteo();
-
-                // Arrancar el Demonio Híbrido CloudSync
-                System.out.println("[App] Iniciando daemon de sincronización CloudSync...");
-                cloudSync = new Controlador.BoletaCloudSync();
-                cloudSync.startSyncDaemon();
-
-                // Inicializar servicio de plaza
-                plazaService = new PlazaCloudService();
-
-                // Validar plaza al arrancar
-                validarPlazaDesdeConfig();
         }
 
         /**
@@ -313,58 +269,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
          * al formulario, debajo de las imágenes.
          */
         private void inicializarPanelPlazaSorteo() {
-                // ── Req 6: Ajustar layouts sin superposición ──
-                // El formulario original (Oportunidades, Colores, imágenes) usa la izquierda y
-                // centro.
-                // Colocaremos los nuevos paneles agrupados en la esquina inferior derecha.
-                // X base = 470, Ancho = 480
-
-                // ── Panel Plaza + Sorteo ──
-                JPanel panelPlaza = new JPanel();
-                panelPlaza.setBorder(BorderFactory.createTitledBorder(
-                                BorderFactory.createLineBorder(new Color(0, 102, 153), 2),
-                                "Plaza y Sorteo",
-                                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
-                                javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                                new Font("Cantarell", Font.BOLD, 13),
-                                new Color(0, 102, 153)));
-                panelPlaza.setLayout(null);
-
-                JLabel lblPlaza = new JLabel("Plaza:");
-                lblPlaza.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblPlaza.setBounds(10, 20, 60, 25);
-                panelPlaza.add(lblPlaza);
-
-                txtPlazaNombre = new JTextField("(Sin validar)");
-                txtPlazaNombre.setEditable(false);
-                txtPlazaNombre.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtPlazaNombre.setBounds(65, 20, 310, 25);
-                txtPlazaNombre.setBackground(new Color(255, 255, 220));
-                panelPlaza.add(txtPlazaNombre);
-
-                JButton btnValidar = new JButton("Validar");
-                btnValidar.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                btnValidar.setBounds(385, 20, 80, 25);
-                btnValidar.addActionListener(e -> validarPlazaDesdeConfig());
-                panelPlaza.add(btnValidar);
-
-                JLabel lblSorteo = new JLabel("Sorteo:");
-                lblSorteo.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblSorteo.setBounds(10, 50, 60, 25);
-                panelPlaza.add(lblSorteo);
-
-                txtCodSorteo = new JTextField("(Pendiente)");
-                txtCodSorteo.setEditable(false);
-                txtCodSorteo.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtCodSorteo.setBounds(65, 50, 310, 25);
-                txtCodSorteo.setBackground(new Color(220, 255, 220));
-                panelPlaza.add(txtCodSorteo);
-
-                // Ubicar debajo de jPanel5 (y=460), a la derecha de las imágenes (x=475)
-                getContentPane().add(panelPlaza,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 460, 590, 85));
-
-                // ── Panel Rangos de Premio ──
+                // ── Panel Rangos de Premio (local) ──
                 JPanel panelRangos = new JPanel();
                 panelRangos.setBorder(BorderFactory.createTitledBorder(
                                 BorderFactory.createLineBorder(new Color(153, 51, 0), 2),
@@ -376,19 +281,13 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 panelRangos.setLayout(null);
 
                 modeloRangos = new DefaultTableModel(
-                                new String[] { "Rango Ini", "Rango Fin", "Prioridad", "Premio (mensaje)" }, 0) {
-                        @Override
-                        public Class<?> getColumnClass(int col) {
-                                return (col == 2) ? Integer.class : String.class;
-                        }
-                };
+                                new String[] { "Rango Ini", "Rango Fin", "Premio (mensaje)" }, 0);
                 tblRangos = new JTable(modeloRangos);
                 tblRangos.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                // Ajustar anchos de columna: Ini, Fin (60), Prioridad (65), Mensaje (resto)
-                tblRangos.getColumnModel().getColumn(0).setPreferredWidth(65);
-                tblRangos.getColumnModel().getColumn(1).setPreferredWidth(65);
-                tblRangos.getColumnModel().getColumn(2).setPreferredWidth(65);
-                tblRangos.getColumnModel().getColumn(3).setPreferredWidth(290);
+                // Ajustar anchos de columna: Ini (70), Fin (70), Mensaje (resto)
+                tblRangos.getColumnModel().getColumn(0).setPreferredWidth(70);
+                tblRangos.getColumnModel().getColumn(1).setPreferredWidth(70);
+                tblRangos.getColumnModel().getColumn(2).setPreferredWidth(350);
                 JScrollPane scrollRangos = new JScrollPane(tblRangos);
                 scrollRangos.setBounds(10, 20, 460, 105);
                 panelRangos.add(scrollRangos);
@@ -397,7 +296,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 btnAgregarRango.setFont(new Font("Cantarell", Font.BOLD, 12));
                 btnAgregarRango.setBounds(480, 20, 50, 25);
                 btnAgregarRango.addActionListener(e -> {
-                        modeloRangos.addRow(new Object[] { "0", "0", 1, "" });
+                        modeloRangos.addRow(new Object[] { "0", "0", "" });
                 });
                 panelRangos.add(btnAgregarRango);
 
@@ -412,138 +311,32 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 });
                 panelRangos.add(btnEliminarRango);
 
-                JButton btnSyncRangos = new JButton("Sincronizar");
-                btnSyncRangos.setFont(new Font("Cantarell", Font.PLAIN, 10));
-                btnSyncRangos.setBounds(480, 80, 100, 25);
-                btnSyncRangos.addActionListener(e -> sincronizarRangos());
-                panelRangos.add(btnSyncRangos);
-
                 getContentPane().add(panelRangos,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 550, 600, 145));
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 460, 600, 135));
 
-                // ── Req 7: Panel de Trazabilidad ──
-                JPanel panelLog = new JPanel();
-                panelLog.setBorder(BorderFactory.createTitledBorder(
-                                BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
-                                "Trazabilidad del Proceso",
-                                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
-                                javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                                new Font("Cantarell", Font.BOLD, 13),
-                                new Color(100, 100, 100)));
-                panelLog.setLayout(new java.awt.BorderLayout());
-
-                txtLog = new javax.swing.JTextArea();
-                txtLog.setEditable(false);
-                txtLog.setFont(new Font("Monospaced", Font.PLAIN, 11));
-                txtLog.setBackground(new Color(245, 245, 245));
-                JScrollPane scrollLog = new JScrollPane(txtLog);
-                panelLog.add(scrollLog, java.awt.BorderLayout.CENTER);
-
-                // Redirigir consola al txtLog
-                LogRedirector redirector = new LogRedirector(txtLog);
-                System.setOut(new java.io.PrintStream(redirector, true));
-                System.setErr(new java.io.PrintStream(redirector, true));
-
-                getContentPane().add(panelLog,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 695, 590, 160));
-
-                this.setPreferredSize(new Dimension(1080, 880));
+                this.setPreferredSize(new Dimension(1080, 640));
                 this.pack();
         }
 
-        /**
-         * Lee el codigo_seguro del config y valida la plaza contra la nube.
-         */
-        private void validarPlazaDesdeConfig() {
-                Controlador.BoletaCloudSync.Config cfg = Controlador.BoletaCloudSync.Config.fromSystem();
-                String codigoPlaza = cfg.getCodigoPlaza();
-
-                if (codigoPlaza == null || codigoPlaza.isEmpty()) {
-                        txtPlazaNombre.setText("ERROR: Sin código de plaza en config");
-                        txtPlazaNombre.setBackground(new Color(255, 200, 200));
-                        System.err.println("[App] No hay codigo_seguro configurado en boletas-sync.properties");
-                        return;
-                }
-
-                System.out.println("[App] Validando plaza con código: " + codigoPlaza);
-                PlazaCloudService.PlazaInfo info = plazaService != null
-                                ? plazaService.validarPlaza(codigoPlaza)
-                                : null;
-
-                if (info != null) {
-                        idPlazaNube = info.idPlaza;
-                        nombrePlaza = info.nombre;
-                        txtPlazaNombre.setText(info.nombre + " (ID: " + info.idPlaza + ")");
-                        txtPlazaNombre.setBackground(new Color(200, 255, 200));
-                        System.out.println("[App] Plaza validada: " + info.nombre);
-
-                        // Obtener último sorteo de la plaza
-                        int ultimoSorteo = plazaService.obtenerUltimoSorteo(idPlazaNube);
-                        if (ultimoSorteo > 0) {
-                                idSorteoActual = ultimoSorteo;
-                                codSorteoTexto = String.valueOf(ultimoSorteo);
-                                txtCodSorteo.setText("Último: #" + ultimoSorteo);
-                        } else {
-                                txtCodSorteo.setText("Sin sorteos previos");
-                        }
-                } else {
-                        idPlazaNube = -1;
-                        nombrePlaza = "";
-                        txtPlazaNombre.setText("ERROR: Plaza no válida o sin conexión");
-                        txtPlazaNombre.setBackground(new Color(255, 200, 200));
-                        System.err.println("[App] No se pudo validar la plaza.");
-                }
-        }
 
         /**
-         * Sincroniza los rangos de premio de la tabla UI con la nube.
+         * Retorna el mensaje de premio para un número de boleta según los rangos locales.
+         * Si cae en varios rangos, gana el de mayor prioridad (número mayor).
          */
-        private void sincronizarRangos() {
-                if (idSorteoActual <= 0) {
-                        JOptionPane.showMessageDialog(this,
-                                        "Debe generar un sorteo primero antes de sincronizar rangos.",
-                                        "Información", JOptionPane.WARNING_MESSAGE);
-                        return;
-                }
-
-                if (modeloRangos.getRowCount() == 0) {
-                        JOptionPane.showMessageDialog(this,
-                                        "Agregue al menos un rango de premio.",
-                                        "Información", JOptionPane.WARNING_MESSAGE);
-                        return;
-                }
-
-                List<PlazaCloudService.RangoPremio> rangos = new ArrayList<>();
-                for (int i = 0; i < modeloRangos.getRowCount(); i++) {
-                        try {
-                                int ini  = Integer.parseInt(modeloRangos.getValueAt(i, 0).toString().trim());
-                                int fin  = Integer.parseInt(modeloRangos.getValueAt(i, 1).toString().trim());
-                                int prio = Integer.parseInt(modeloRangos.getValueAt(i, 2).toString().trim());
-                                String msg = modeloRangos.getValueAt(i, 3).toString().trim();
-                                if (ini > fin) {
-                                        JOptionPane.showMessageDialog(this,
-                                                        "Fila " + (i + 1) + ": Rango Ini (" + ini + ") no puede ser mayor que Rango Fin (" + fin + ").",
-                                                        "Error", JOptionPane.ERROR_MESSAGE);
-                                        return;
+        private String obtenerPremioLocal(String numeroBoleta) {
+                try {
+                        int numBol = Integer.parseInt(numeroBoleta);
+                        for (int i = 0; i < modeloRangos.getRowCount(); i++) {
+                                int ini = Integer.parseInt(modeloRangos.getValueAt(i, 0).toString().trim());
+                                int fin = Integer.parseInt(modeloRangos.getValueAt(i, 1).toString().trim());
+                                String msg = modeloRangos.getValueAt(i, 2).toString().trim();
+                                if (numBol >= ini && numBol <= fin) {
+                                        return msg;
                                 }
-                                rangos.add(new PlazaCloudService.RangoPremio(ini, fin, msg, null, prio));
-                        } catch (NumberFormatException ex) {
-                                JOptionPane.showMessageDialog(this,
-                                                "Rango inválido en fila " + (i + 1) + ". Ini, Fin y Prioridad deben ser números enteros.",
-                                                "Error", JOptionPane.ERROR_MESSAGE);
-                                return;
                         }
-                }
-
-                PlazaCloudService.CloudResult result = plazaService.registrarRangos(idSorteoActual, rangos);
-                if (result.exito) {
-                        JOptionPane.showMessageDialog(this,
-                                        result.mensaje,
-                                        "Rangos Sincronizados", JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                        JOptionPane.showMessageDialog(this,
-                                        "Error: " + result.mensaje,
-                                        "Error de Sincronización", JOptionPane.ERROR_MESSAGE);
+                        return "Sin Premio";
+                } catch (NumberFormatException e) {
+                        return "Sin Premio";
                 }
         }
 
@@ -655,55 +448,31 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         col = 0;
                         fil = 0;
 
-                        Controlador.ConectorSqlite sqliteSync = new Controlador.ConectorSqlite("", "", "db/boletas.db",
-                                        "");
-                        if (sqliteSync.getConexion() == null) {
-                                throw new IOException(
-                                                "No fue posible abrir db/boletas.db para registrar la sincronización.");
-                        }
-
-                        int totalInsertadas = 0;
-                        int totalFallidas = 0;
-                        System.out.println("[writePDF] Iniciando generación de boletas. Reporte tipo: " + tipoReporte);
-                        System.out.println("[writePDF] Sorteo nube: " + idSorteoActual + " (" + codSorteoTexto + ")");
+                        int totalBoletas = 0;
+                        String sorteoNombre = txtTitulo.getText();
 
                         // Imprimir documento en PDF
                         do {
                                 if (col < maxCol) {
-                                        // ── Req 3: Concatenar opor números de esta boleta ──
+                                        // Concatenar números de oportunidades de esta boleta
                                         StringBuilder sbNumeros = new StringBuilder();
                                         for (int m = 0; m < opor; m++) {
                                                 if (index + m < stmpPrint.size()) {
-                                                        if (m > 0)
-                                                                sbNumeros.append("-");
+                                                        if (m > 0) sbNumeros.append("-");
                                                         sbNumeros.append(stmpPrint.get(index + m));
                                                 }
                                         }
                                         String numerosConcatenados = sbNumeros.toString();
 
-                                        String trackUUID = Controlador.GeneradorQR.generarUUIDToken();
-                                        String boletaConsecutivoFormateada = String.format("%04d", totalInsertadas + 1);
-                                        boolean insertada = sqliteSync.insertarSincronizacion(idSorteoActual,
-                                                        boletaConsecutivoFormateada, numerosConcatenados, trackUUID);
+                                        totalBoletas++;
+                                        String boletaConsecutivoFormateada = String.format("%04d", totalBoletas);
 
-                                        // ── Req 4: Imprimir correlativo de Boleta en PDF ──
-                                        if (insertada) {
-                                                totalInsertadas++;
-                                                // boletaConsecutivoFormateada ya tiene el numero de boleta correcto
-                                                System.out.println("[writePDF] Boleta local registrada #"
-                                                                + boletaConsecutivoFormateada
-                                                                + " -> nums="
-                                                                + (numerosConcatenados.length() > 20
-                                                                                ? numerosConcatenados.substring(0, 20)
-                                                                                                + "..."
-                                                                                : numerosConcatenados)
-                                                                + ", UUID=" + trackUUID.substring(0, 8) + "...");
-                                        } else {
-                                                totalFallidas++;
-                                                System.err.println(
-                                                                "[writePDF] No se pudo registrar localmente la boleta numeros="
-                                                                                + numerosConcatenados);
-                                        }
+                                        // QR Derecha: solo los números de oportunidades en cadena
+                                        String qrInfoContent = numerosConcatenados;
+
+                                        // QR Izquierda: solo el mensaje del premio
+                                        String premioBoleta = obtenerPremioLocal(boletaConsecutivoFormateada);
+                                        String qrPremioContent = premioBoleta;
 
                                         bol.drawRectangle(canvas,
                                                         x, y, ancho, alto,
@@ -715,11 +484,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                         txtMensaje6.getText(),
                                                         txtMensaje7.getText(), txtMensaje8.getText(),
                                                         txtMensaje9.getText(),
-                                                        opor,
-                                                        color,
+                                                        opor, color,
                                                         stmpPrint, index,
-                                                        img, pre, trackUUID, codSorteoTexto,
-                                                        boletaConsecutivoFormateada);
+                                                        img, pre, qrInfoContent, qrPremioContent,
+                                                        sorteoNombre, boletaConsecutivoFormateada);
 
                                         index += opor;
                                         x = x + paso_x;
@@ -744,29 +512,11 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
                         } while (band);
 
-                        sqliteSync.Cerrar();
                         document.close();
 
-                        System.out.println("[writePDF] PDF generado. Total boletas insertadas en SQLite: "
-                                        + totalInsertadas + ". Fallidas: " + totalFallidas);
-
-                        // Disparar sincronización INMEDIATA con el servidor ORDS
-                        if (cloudSync != null) {
-                                if (totalInsertadas > 0) {
-                                        System.out.println(
-                                                        "[writePDF] Disparando sincronización inmediata al Cloud (ORDS)...");
-                                        cloudSync.syncNow();
-                                } else {
-                                        System.err.println(
-                                                        "[writePDF] No se dispara sincronización porque no hubo registros locales exitosos.");
-                                }
-                        } else {
-                                System.err.println("[writePDF] AVISO: cloudSync es null, no se pudo sincronizar.");
-                        }
-
                         JOptionPane.showMessageDialog(this,
-                                        "El archivo PDF [ " + this.txtFilePDF.getText() + " ] fue generado con exito\n"
-                                                        + "Sincronizando " + totalInsertadas
+                                        "El archivo PDF [ " + this.txtFilePDF.getText() + " ] fue generado con exito.\n"
+                                                        + "Total boletas generadas: " + totalBoletas
                                                         + " boletas con el servidor...",
                                         "Informacion",
                                         JOptionPane.INFORMATION_MESSAGE);
@@ -1678,31 +1428,14 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         private void btnFondo1ActionPerformed(java.awt.event.ActionEvent evt) {// GEN-FIRST:event_btnFondo1ActionPerformed
 
-                // Validar que la plaza esté autenticada
-                if (idPlazaNube <= 0) {
-                        JOptionPane.showMessageDialog(this,
-                                        "Debe validar la plaza antes de generar boletas.\n"
-                                                        + "Configure 'boletas.plaza.codigo_seguro' en config/boletas-sync.properties",
-                                        "Plaza No Validada", JOptionPane.WARNING_MESSAGE);
-                        return;
+                // Advertir si no hay rangos de premio definidos
+                if (modeloRangos != null && modeloRangos.getRowCount() == 0) {
+                        int resp = JOptionPane.showConfirmDialog(this,
+                                        "No hay rangos de premio definidos.\n"
+                                                        + "Los QR de premio mostrarán 'Sin Premio'.\n¿Continuar?",
+                                        "Sin Rangos de Premio", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                        if (resp != JOptionPane.YES_OPTION) return;
                 }
-
-                // Crear un nuevo sorteo en la nube
-                String nombreSorteo = txtTitulo.getText() + " - " + txtFecha.getText();
-                System.out.println("[App] Creando sorteo: " + nombreSorteo + " para plaza ID: " + idPlazaNube);
-                int nuevoSorteo = plazaService.crearSorteo(idPlazaNube, nombreSorteo);
-                if (nuevoSorteo <= 0) {
-                        JOptionPane.showMessageDialog(this,
-                                        "No se pudo crear el sorteo en la nube.\n"
-                                                        + "Verifique la conexión y reintente.",
-                                        "Error de Sorteo", JOptionPane.ERROR_MESSAGE);
-                        return;
-                }
-
-                idSorteoActual = nuevoSorteo;
-                codSorteoTexto = String.valueOf(nuevoSorteo);
-                txtCodSorteo.setText("Sorteo #" + nuevoSorteo);
-                System.out.println("[App] Sorteo creado exitosamente: #" + nuevoSorteo);
 
                 Date objDate = new Date();
 
