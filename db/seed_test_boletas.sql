@@ -16,7 +16,7 @@ EXCEPTION
     WHEN DUP_VAL_ON_INDEX THEN 
         DBMS_OUTPUT.PUT_LINE('Sorteo 9999 ya existía.');
     WHEN OTHERS THEN
-        -- Si la tabla se llama diferente, ajusta la PK cnl_sorteos
+        -- La tabla correcta es CNL_SORTEOS (con 's'). Verifica que no exista CNL_SORTEO sin 's'.
         DBMS_OUTPUT.PUT_LINE('Error insertando sorteo (verifica el nombre de tu tabla de sorteos): ' || SQLERRM);
 END;
 /

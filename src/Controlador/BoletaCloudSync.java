@@ -38,7 +38,7 @@ public class BoletaCloudSync {
 
     public static class Config {
         private static final String DEFAULT_CONFIG_PATH = "config/boletas-sync.properties";
-        private static final String DEFAULT_ORDS_BATCH_URL = "https://poco.absapex.net/apex/api_boletas/v1/boletas/batch";
+        private static final String DEFAULT_ORDS_BATCH_URL = "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/boletas/batch";
         private static final String DEFAULT_SQLITE_URL = "jdbc:sqlite:db/boletas.db";
         private static final int DEFAULT_TIMEOUT_MS = 15_000;
         private static final int DEFAULT_LOTE_MAX = 500;
@@ -52,9 +52,11 @@ public class BoletaCloudSync {
         final String authUser;
         final String authPassword;
         final String authToken;
+        final String codigoPlaza;
 
         public Config(String ordsBatchUrl, String sqliteUrl, int timeoutMs, int loteMax,
-                boolean syncEnabled, String authMode, String authUser, String authPassword, String authToken) {
+                boolean syncEnabled, String authMode, String authUser, String authPassword,
+                String authToken, String codigoPlaza) {
             this.ordsBatchUrl = ordsBatchUrl;
             this.sqliteUrl = sqliteUrl;
             this.timeoutMs = timeoutMs;
@@ -64,6 +66,7 @@ public class BoletaCloudSync {
             this.authUser = authUser;
             this.authPassword = authPassword;
             this.authToken = authToken;
+            this.codigoPlaza = codigoPlaza == null ? "" : codigoPlaza.trim();
         }
 
         public static Config fromSystem() {
@@ -103,7 +106,15 @@ public class BoletaCloudSync {
                     firstNonBlank(System.getProperty("boletas.sync.auth.token"),
                             fileProperties.getProperty("boletas.sync.auth.token"),
                             System.getenv("BOLETAS_ORDS_AUTH_TOKEN"),
+                            ""),
+                    firstNonBlank(System.getProperty("boletas.plaza.codigo_seguro"),
+                            fileProperties.getProperty("boletas.plaza.codigo_seguro"),
+                            System.getenv("BOLETAS_PLAZA_CODIGO"),
                             ""));
+        }
+
+        public String getCodigoPlaza() {
+            return codigoPlaza;
         }
 
         private static Properties loadPropertiesFile(String configPath) {
@@ -150,12 +161,14 @@ public class BoletaCloudSync {
         final int id;
         final int idSorteo;
         final String numeroBoleta;
+        final String numerosOportunidades;
         final String qrToken;
 
-        BoletaPendiente(int id, int idSorteo, String numeroBoleta, String qrToken) {
+        BoletaPendiente(int id, int idSorteo, String numeroBoleta, String numerosOportunidades, String qrToken) {
             this.id = id;
             this.idSorteo = idSorteo;
             this.numeroBoleta = numeroBoleta;
+            this.numerosOportunidades = numerosOportunidades;
             this.qrToken = qrToken;
         }
     }
@@ -246,17 +259,43 @@ public class BoletaCloudSync {
             int enviadas = 0;
             while (true) {
                 System.out.println("[CloudSync] Procesando siguiente lote. max=" + config.loteMax + "...");
-                int resultado = procesarLote(conn);
-                if (resultado == 0)
-                    break;
+                List<BoletaPendiente> lote = cargarPendientes(conn);
+                if (lote.isEmpty()) {
+                    break; // No hay más lotes pendientes
+                }
 
-                enviadas += resultado;
-                System.out.println("[CloudSync] Lote completado. Enviadas en este lote: " + resultado
-                        + ". Total acumulado: " + enviadas);
+                try {
+                    procesarLote(conn, lote); // procesarLote ahora maneja el envío y marcado
+                    enviadas += lote.size();
+                } catch (java.io.IOException e) {
+                    System.err
+                            .println("[CloudSync] Error de conexión al ORDS, se reintentará luego: " + e.getMessage());
+                    // No se marca el lote como ERROR, se deja PENDIENTE_SYNC para reintento
+                    break; // Sale del while(true) de este ciclo y espera al siguiente ciclo del demonio
+                } catch (RuntimeException e) {
+                    System.err.println(
+                            "[CloudSync] Error inesperado en el servidor, marcando lote con ERROR: " + e.getMessage());
+                    actualizarEstado(conn, lote, "ERROR"); // Marcar lote como ERROR
+                    // Continúa con otros lotes si hay, pero este lote no se reintenta
+                }
             }
 
             System.out.println("[CloudSync] Sincronización completada. Total enviadas: "
                     + enviadas + " de " + totalPendientes + " pendientes.");
+
+            // ── Req 1: Limpieza de la BD local tras sincronización total ──
+            if (enviadas > 0 && enviadas == totalPendientes) {
+                System.out.println("[CloudSync] Todas las boletas han sido sincronizadas con éxito.");
+                System.out.println(
+                        "[CloudSync] Procediendo a limpiar la tabla local boleta_local_sync para reiniciar la secuencia...");
+                try (java.sql.Statement st = conn.createStatement()) {
+                    st.executeUpdate("DELETE FROM boleta_local_sync");
+                    st.executeUpdate("DELETE FROM sqlite_sequence WHERE name='boleta_local_sync'");
+                    System.out.println("[CloudSync] Tabla local limpiada y secuencia reseteada correctamente.");
+                } catch (Exception ex) {
+                    System.err.println("[CloudSync] Error al intentar limpiar la tabla local: " + ex.getMessage());
+                }
+            }
         }
     }
 
@@ -270,17 +309,13 @@ public class BoletaCloudSync {
     }
 
     // ─── Procesa un lote y lo envía al ORDS ──────────────────────────────────
-    private int procesarLote(Connection conn) throws Exception {
-        List<BoletaPendiente> lote = cargarPendientes(conn);
-        if (lote.isEmpty()) {
-            return 0;
-        }
-
+    private void procesarLote(Connection conn, List<BoletaPendiente> lote) throws Exception {
         JSONArray boletas = new JSONArray();
         int idSorteo = lote.get(0).idSorteo;
         for (BoletaPendiente pendiente : lote) {
             JSONObject item = new JSONObject();
             item.put("numero", pendiente.numeroBoleta);
+            item.put("numeros_oportunidades", pendiente.numerosOportunidades);
             item.put("qr_token", pendiente.qrToken);
             boletas.put(item);
         }
@@ -297,18 +332,12 @@ public class BoletaCloudSync {
 
         HttpResult httpResult = enviarAOrds(payload.toString());
 
-        if (httpResult.code == 200 || httpResult.code == 201) {
-            int actualizadas = marcarComoOk(conn, lote);
-            System.out.println("[CloudSync] HTTP " + httpResult.code
-                    + ". Registros marcados como OK en SQLite: " + actualizadas + ".");
-            if (httpResult.body != null && !httpResult.body.isEmpty()) {
-                System.out.println("[CloudSync] Respuesta ORDS: " + httpResult.body);
-            }
-            return actualizadas;
-        } else {
-            System.err.println("[CloudSync] ORDS respondió HTTP " + httpResult.code
-                    + ". El lote queda pendiente para reintento.");
-            return 0;
+        // Si enviarAOrds no lanzó excepción, significa que el código fue 200/201
+        int actualizadas = actualizarEstado(conn, lote, "OK");
+        System.out.println("[CloudSync] HTTP " + httpResult.code
+                + ". Registros marcados como OK en SQLite: " + actualizadas + ".");
+        if (httpResult.body != null && !httpResult.body.isEmpty()) {
+            System.out.println("[CloudSync] Respuesta ORDS: " + httpResult.body);
         }
     }
 
@@ -318,7 +347,7 @@ public class BoletaCloudSync {
             return new ArrayList<>();
         }
 
-        String selectSql = "SELECT id, id_sorteo_nube, numero_boleta, qr_token "
+        String selectSql = "SELECT id, id_sorteo_nube, numero_boleta, numeros_oportunidades, qr_token "
                 + "FROM boleta_local_sync "
                 + "WHERE sync_status='PENDIENTE_SYNC' AND id_sorteo_nube = ? "
                 + "ORDER BY id LIMIT ?";
@@ -332,6 +361,7 @@ public class BoletaCloudSync {
                             rs.getInt("id"),
                             rs.getInt("id_sorteo_nube"),
                             rs.getString("numero_boleta"),
+                            rs.getString("numeros_oportunidades"),
                             rs.getString("qr_token")));
                 }
             }
@@ -348,12 +378,13 @@ public class BoletaCloudSync {
         }
     }
 
-    private int marcarComoOk(Connection conn, List<BoletaPendiente> lote) throws SQLException {
-        String sql = "UPDATE boleta_local_sync SET sync_status='OK', fecha_sync=CURRENT_TIMESTAMP "
+    private int actualizarEstado(Connection conn, List<BoletaPendiente> lote, String estado) throws SQLException {
+        String sql = "UPDATE boleta_local_sync SET sync_status=?, fecha_sync=CURRENT_TIMESTAMP "
                 + "WHERE id = ?";
         try (PreparedStatement pst = conn.prepareStatement(sql)) {
             for (BoletaPendiente pendiente : lote) {
-                pst.setInt(1, pendiente.id);
+                pst.setString(1, estado);
+                pst.setInt(2, pendiente.id);
                 pst.addBatch();
             }
             int[] resultado = pst.executeBatch();

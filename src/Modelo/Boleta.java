@@ -25,7 +25,7 @@ public class Boleta {
             int oportun,
             int colortexto,
             ArrayList<String> stmpPrint, int idx,
-            Image img, Image pre, String uuidAPI)
+            Image img, Image pre, String uuidAPI, String codSorteo, String numeroBoleta)
             throws DocumentException, IOException {
 
         ArrayList<String> impresos = new ArrayList<>();
@@ -72,6 +72,26 @@ public class Boleta {
         QRimage.setBorderColor(BaseColor.BLACK);
         canvas.addImage(QRimage);
         canvas.restoreState();
+
+        // Imprimir código de sorteo y boleta debajo del QR
+        if (codSorteo != null && !codSorteo.isEmpty()) {
+            canvas.saveState();
+            BaseFont bfSorteo = BaseFont.createFont();
+            canvas.beginText();
+            canvas.setTextRenderingMode(2);
+            canvas.setLineWidth(0.5F);
+            canvas.setRGBColorStroke(0, 0, 0);
+            canvas.setRGBColorFill(0, 0, 0);
+            canvas.setFontAndSize(bfSorteo, 6.0F * scaleFont);
+            // Sorteo en la posición original
+            canvas.setTextMatrix(x + ancho - 45 * scaleX, y + alto - 10 * scaleY);
+            canvas.showText("Sorteo: " + codSorteo);
+            // Boleta un poco más abajo
+            canvas.setTextMatrix(x + ancho - 45 * scaleX, y + alto - 16 * scaleY);
+            canvas.showText("Boleta: " + (numeroBoleta != null ? numeroBoleta : "N/A"));
+            canvas.endText();
+            canvas.restoreState();
+        }
         canvas.saveState();
         BaseFont bf = BaseFont.createFont();
 

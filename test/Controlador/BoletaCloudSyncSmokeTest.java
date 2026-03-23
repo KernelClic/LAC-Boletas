@@ -59,7 +59,8 @@ public class BoletaCloudSyncSmokeTest {
                     "basic",
                     "demo",
                     "secreta",
-                    "");
+                    "",
+                    "PLAZA-TEST-001");
 
             BoletaCloudSync sync = new BoletaCloudSync(config);
             sync.runSyncCycle();
@@ -135,16 +136,18 @@ public class BoletaCloudSyncSmokeTest {
                 Statement st = conn.createStatement()) {
             st.execute("CREATE TABLE boleta_local_sync ("
                     + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    + "id_sorteo_nube INTEGER NOT NULL,"
-                    + "numero_boleta TEXT NOT NULL,"
-                    + "qr_token TEXT NOT NULL UNIQUE,"
-                    + "fecha_generacion DATETIME DEFAULT CURRENT_TIMESTAMP,"
+                    + "id_sorteo_nube INTEGER,"
+                    + "numero_boleta TEXT,"
+                    + "numeros_oportunidades TEXT,"
+                    + "qr_token TEXT,"
                     + "sync_status TEXT DEFAULT 'PENDIENTE_SYNC',"
-                    + "fecha_sync DATETIME)");
+                    + "fecha_sync DATETIME"
+                    + ")");
         }
     }
 
-    private static void insertarPendiente(String sqliteUrl, int idSorteo, String numero, String qrToken) throws Exception {
+    private static void insertarPendiente(String sqliteUrl, int idSorteo, String numero, String qrToken)
+            throws Exception {
         try (Connection conn = DriverManager.getConnection(sqliteUrl);
                 PreparedStatement pst = conn.prepareStatement(
                         "INSERT INTO boleta_local_sync(id_sorteo_nube, numero_boleta, qr_token) VALUES(?,?,?)")) {
