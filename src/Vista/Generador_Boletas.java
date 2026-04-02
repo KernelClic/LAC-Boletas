@@ -53,6 +53,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private JTable tblRangos;
         private DefaultTableModel modeloRangos;
         private javax.swing.JTextArea txtLog; // Req 7: Trazabilidad
+        private JTextField txtIdSorteoConsulta;
+        private JLabel lblEstadoBoletaResult;
 
         // ── Req 7: Redirección de consola a JTextArea ──
         private class LogRedirector extends java.io.OutputStream {
@@ -84,6 +86,15 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         // Sincronizador cloud (campo de instancia para reutilizarlo en syncNow)
         private Controlador.BoletaCloudSync cloudSync;
+
+        private String formatFecha(String fechaISO) {
+                if (fechaISO == null || fechaISO.isEmpty()) return fechaISO;
+                try {
+                        java.text.SimpleDateFormat sdfIn  = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        java.text.SimpleDateFormat sdfOut = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+                        return sdfOut.format(sdfIn.parse(fechaISO));
+                } catch (Exception e) { return fechaISO; }
+        }
 
         private ImageIcon iconEscalada(String path, int w, int h) {
                 ImageIcon orig = new ImageIcon(path);
@@ -290,8 +301,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
                 String path = this.txtImagen.getText();
                 String pathPremio = this.txtPremio.getText();
-                lblImagen.setIcon(iconEscalada(path, 220, 185));
-                lblImagen1.setIcon(iconEscalada(pathPremio, 225, 185));
+                lblImagen.setIcon(iconEscalada(path, 215, 198));
+                lblImagen1.setIcon(iconEscalada(pathPremio, 215, 198));
 
                 // ── Inicializar panel de Plaza, Sorteo y Rangos ──
                 inicializarPanelPlazaSorteo();
@@ -313,142 +324,382 @@ public class Generador_Boletas extends javax.swing.JFrame {
          * al formulario, debajo de las imágenes.
          */
         private void inicializarPanelPlazaSorteo() {
-                // ── Req 6: Ajustar layouts sin superposición ──
-                // El formulario original (Oportunidades, Colores, imágenes) usa la izquierda y
-                // centro.
-                // Colocaremos los nuevos paneles agrupados en la esquina inferior derecha.
-                // X base = 470, Ancho = 480
+                // ── Paso 1: Reconstruir jPanel1 con AbsoluteLayout compacto ──
+                getContentPane().remove(jPanel1);
+                jPanel1.removeAll();
+                jPanel1.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+                {
+                        final int xL = 5, wL = 92, xF = 100, wF = 370, h = 20, dy = 24;
+                        int y = 5;
+                        jPanel1.add(jLabel1,      new org.netbeans.lib.awtextra.AbsoluteConstraints(xL, y, wL, h));
+                        jPanel1.add(txtTitulo,    new org.netbeans.lib.awtextra.AbsoluteConstraints(xF, y, wF, h));
+                        y += dy;
+                        jPanel1.add(jLabel2,      new org.netbeans.lib.awtextra.AbsoluteConstraints(xL, y, wL, h));
+                        jPanel1.add(txtVlrBoleta, new org.netbeans.lib.awtextra.AbsoluteConstraints(xF, y, 110, h));
+                        jPanel1.add(jLabel3,      new org.netbeans.lib.awtextra.AbsoluteConstraints(220, y, 45, h));
+                        jPanel1.add(txtFecha,     new org.netbeans.lib.awtextra.AbsoluteConstraints(268, y, 115, h));
+                        y += dy;
+                        javax.swing.JLabel[] lbls = { jLabel4, jLabel5, jLabel6, jLabel14, jLabel16, jLabel17, jLabel18, jLabel20, jLabel21 };
+                        javax.swing.JTextField[] flds = { txtMensaje1, txtMensaje2, txtMensaje3, txtMensaje4, txtMensaje5, txtMensaje6, txtMensaje7, txtMensaje8, txtMensaje9 };
+                        for (int i = 0; i < lbls.length; i++) {
+                                jPanel1.add(lbls[i], new org.netbeans.lib.awtextra.AbsoluteConstraints(xL, y, wL, h));
+                                jPanel1.add(flds[i], new org.netbeans.lib.awtextra.AbsoluteConstraints(xF, y, wF, h));
+                                y += dy;
+                        }
+                        jPanel1.add(jLabel7,   new org.netbeans.lib.awtextra.AbsoluteConstraints(xL, y, wL, h));
+                        jPanel1.add(txtImagen, new org.netbeans.lib.awtextra.AbsoluteConstraints(xF, y, 263, h));
+                        jPanel1.add(btnFondo,  new org.netbeans.lib.awtextra.AbsoluteConstraints(367, y, 98, h));
+                        y += dy;
+                        jPanel1.add(jLabel19,  new org.netbeans.lib.awtextra.AbsoluteConstraints(xL, y, wL, h));
+                        jPanel1.add(txtPremio, new org.netbeans.lib.awtextra.AbsoluteConstraints(xF, y, 263, h));
+                        jPanel1.add(btnFondo2, new org.netbeans.lib.awtextra.AbsoluteConstraints(367, y, 98, h));
+                }
+                getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 478, 322));
 
-                // ── Panel Plaza + Sorteo ──
+                // ── Paso 2: Reposicionar miniaturas de imagen (BorderLayout = imagen estirada) ──
+                getContentPane().remove(jPanel3);
+                getContentPane().remove(jPanel2);
+                jPanel3.setLayout(new java.awt.BorderLayout());
+                jPanel3.removeAll();
+                lblImagen.setHorizontalAlignment(javax.swing.JLabel.CENTER);
+                lblImagen.setVerticalAlignment(javax.swing.JLabel.CENTER);
+                jPanel3.add(lblImagen, java.awt.BorderLayout.CENTER);
+                jPanel2.setLayout(new java.awt.BorderLayout());
+                jPanel2.removeAll();
+                lblImagen1.setHorizontalAlignment(javax.swing.JLabel.CENTER);
+                lblImagen1.setVerticalAlignment(javax.swing.JLabel.CENTER);
+                jPanel2.add(lblImagen1, java.awt.BorderLayout.CENTER);
+                getContentPane().add(jPanel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(480,   2, 215, 198));
+                getContentPane().add(jPanel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(480, 202, 215, 198));
+
+                // ── Paso 3: Reposicionar jPanel5 y reducir TabbedPane de cifras ──
+                getContentPane().remove(jPanel5);
+                jTabbedPane1.setPreferredSize(new java.awt.Dimension(139, 175));
+                getContentPane().add(jPanel5, new org.netbeans.lib.awtextra.AbsoluteConstraints(700, 0, 335, 320));
+
+                // ── Paso 4: Panel Plaza y Sorteo (compacto, 2 filas) ──
                 JPanel panelPlaza = new JPanel();
                 panelPlaza.setBorder(BorderFactory.createTitledBorder(
                                 BorderFactory.createLineBorder(new Color(0, 102, 153), 2),
                                 "Plaza y Sorteo",
                                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                                new Font("Cantarell", Font.BOLD, 13),
+                                new Font("Cantarell", Font.BOLD, 11),
                                 new Color(0, 102, 153)));
                 panelPlaza.setLayout(null);
 
                 JLabel lblPlaza = new JLabel("Plaza:");
-                lblPlaza.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblPlaza.setBounds(10, 20, 60, 25);
+                lblPlaza.setFont(new Font("Cantarell", Font.BOLD, 11));
+                lblPlaza.setBounds(5, 17, 45, 20);
                 panelPlaza.add(lblPlaza);
 
                 txtPlazaNombre = new JTextField("(Sin validar)");
                 txtPlazaNombre.setEditable(false);
-                txtPlazaNombre.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtPlazaNombre.setBounds(65, 20, 310, 25);
+                txtPlazaNombre.setFont(new Font("Cantarell", Font.PLAIN, 11));
+                txtPlazaNombre.setBounds(52, 17, 272, 20);
                 txtPlazaNombre.setBackground(new Color(255, 255, 220));
                 panelPlaza.add(txtPlazaNombre);
 
                 JButton btnValidar = new JButton("Validar");
-                btnValidar.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                btnValidar.setBounds(385, 20, 80, 25);
+                btnValidar.setFont(new Font("Cantarell", Font.PLAIN, 10));
+                btnValidar.setBounds(328, 17, 65, 20);
                 btnValidar.addActionListener(e -> validarPlazaDesdeConfig());
                 panelPlaza.add(btnValidar);
 
                 JLabel lblSorteo = new JLabel("Sorteo:");
-                lblSorteo.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblSorteo.setBounds(10, 50, 60, 25);
+                lblSorteo.setFont(new Font("Cantarell", Font.BOLD, 11));
+                lblSorteo.setBounds(5, 41, 45, 20);
                 panelPlaza.add(lblSorteo);
 
                 txtCodSorteo = new JTextField("(Pendiente)");
                 txtCodSorteo.setEditable(false);
-                txtCodSorteo.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtCodSorteo.setBounds(65, 50, 310, 25);
+                txtCodSorteo.setFont(new Font("Cantarell", Font.PLAIN, 11));
+                txtCodSorteo.setBounds(52, 41, 120, 20);
                 txtCodSorteo.setBackground(new Color(220, 255, 220));
                 panelPlaza.add(txtCodSorteo);
 
-                // Ubicar debajo de jPanel5 (y=460), a la derecha de las imágenes (x=475)
-                getContentPane().add(panelPlaza,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 460, 590, 85));
+                JLabel lblIdSorteo = new JLabel("ID:");
+                lblIdSorteo.setFont(new Font("Cantarell", Font.BOLD, 11));
+                lblIdSorteo.setBounds(178, 41, 25, 20);
+                panelPlaza.add(lblIdSorteo);
 
-                // ── Panel Rangos de Premio ──
+                txtIdSorteoConsulta = new JTextField();
+                txtIdSorteoConsulta.setFont(new Font("Cantarell", Font.PLAIN, 11));
+                txtIdSorteoConsulta.setBounds(206, 41, 58, 20);
+                txtIdSorteoConsulta.setToolTipText("ID del sorteo a consultar");
+                panelPlaza.add(txtIdSorteoConsulta);
+
+                JButton btnConsultarSorteo = new JButton("Consultar");
+                btnConsultarSorteo.setFont(new Font("Cantarell", Font.PLAIN, 10));
+                btnConsultarSorteo.setBounds(268, 41, 80, 20);
+                btnConsultarSorteo.setBackground(new Color(0, 102, 153));
+                btnConsultarSorteo.setForeground(Color.WHITE);
+                btnConsultarSorteo.addActionListener(e -> consultarSorteoDesdeNube());
+                panelPlaza.add(btnConsultarSorteo);
+
+                getContentPane().add(panelPlaza,
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 402, 435, 66));
+
+                // ── Paso 5: Panel Rangos de Premio (sin columna Prioridad) ──
                 JPanel panelRangos = new JPanel();
                 panelRangos.setBorder(BorderFactory.createTitledBorder(
                                 BorderFactory.createLineBorder(new Color(153, 51, 0), 2),
                                 "Rangos de Premio",
                                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                                new Font("Cantarell", Font.BOLD, 13),
+                                new Font("Cantarell", Font.BOLD, 11),
                                 new Color(153, 51, 0)));
                 panelRangos.setLayout(null);
 
                 modeloRangos = new DefaultTableModel(
-                                new String[] { "Rango Ini", "Rango Fin", "Prioridad", "Premio (mensaje)" }, 0) {
+                                new String[] { "Ini", "Fin", "Premio (mensaje)" }, 0) {
                         @Override
                         public Class<?> getColumnClass(int col) {
-                                return (col == 2) ? Integer.class : String.class;
+                                return String.class;
                         }
                 };
                 tblRangos = new JTable(modeloRangos);
                 tblRangos.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                // Ajustar anchos de columna: Ini, Fin (60), Prioridad (65), Mensaje (resto)
-                tblRangos.getColumnModel().getColumn(0).setPreferredWidth(65);
-                tblRangos.getColumnModel().getColumn(1).setPreferredWidth(65);
-                tblRangos.getColumnModel().getColumn(2).setPreferredWidth(65);
-                tblRangos.getColumnModel().getColumn(3).setPreferredWidth(290);
+                tblRangos.setRowHeight(20);
+                tblRangos.getColumnModel().getColumn(0).setPreferredWidth(55);
+                tblRangos.getColumnModel().getColumn(1).setPreferredWidth(55);
+                tblRangos.getColumnModel().getColumn(2).setPreferredWidth(240);
                 JScrollPane scrollRangos = new JScrollPane(tblRangos);
-                scrollRangos.setBounds(10, 20, 460, 105);
+                scrollRangos.setBounds(5, 20, 285, 148);
                 panelRangos.add(scrollRangos);
 
                 JButton btnAgregarRango = new JButton("+");
                 btnAgregarRango.setFont(new Font("Cantarell", Font.BOLD, 12));
-                btnAgregarRango.setBounds(480, 20, 50, 25);
+                btnAgregarRango.setBounds(294, 20, 35, 22);
                 btnAgregarRango.addActionListener(e -> {
-                        modeloRangos.addRow(new Object[] { "0", "0", 1, "" });
+                        modeloRangos.addRow(new Object[] { "0", "0", "" });
                 });
                 panelRangos.add(btnAgregarRango);
 
                 JButton btnEliminarRango = new JButton("-");
                 btnEliminarRango.setFont(new Font("Cantarell", Font.BOLD, 12));
-                btnEliminarRango.setBounds(480, 50, 50, 25);
+                btnEliminarRango.setBounds(294, 46, 35, 22);
                 btnEliminarRango.addActionListener(e -> {
                         int fila = tblRangos.getSelectedRow();
-                        if (fila >= 0) {
-                                modeloRangos.removeRow(fila);
-                        }
+                        if (fila >= 0) modeloRangos.removeRow(fila);
                 });
                 panelRangos.add(btnEliminarRango);
 
                 JButton btnSyncRangos = new JButton("Sincronizar");
                 btnSyncRangos.setFont(new Font("Cantarell", Font.PLAIN, 10));
-                btnSyncRangos.setBounds(480, 80, 100, 25);
+                btnSyncRangos.setBounds(289, 72, 88, 22);
                 btnSyncRangos.addActionListener(e -> sincronizarRangos());
                 panelRangos.add(btnSyncRangos);
 
                 getContentPane().add(panelRangos,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 550, 600, 145));
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(660, 402, 382, 178));
 
-                // ── Req 7: Panel de Trazabilidad ──
+                // ── Paso 6: Panel Estado de Boleta (al lado derecho de Plaza y Sorteo) ──
+                JPanel panelEstadoBoleta = new JPanel();
+                panelEstadoBoleta.setBorder(BorderFactory.createTitledBorder(
+                                BorderFactory.createLineBorder(new Color(0, 128, 0), 2),
+                                "Estado Boleta",
+                                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+                                javax.swing.border.TitledBorder.DEFAULT_POSITION,
+                                new Font("Cantarell", Font.BOLD, 11),
+                                new Color(0, 128, 0)));
+                panelEstadoBoleta.setLayout(null);
+
+                JLabel lblNroBoleta = new JLabel("Boleta:");
+                lblNroBoleta.setFont(new Font("Cantarell", Font.BOLD, 11));
+                lblNroBoleta.setBounds(5, 15, 46, 20);
+                panelEstadoBoleta.add(lblNroBoleta);
+
+                JTextField txtNroBoleta = new JTextField();
+                txtNroBoleta.setFont(new Font("Cantarell", Font.PLAIN, 11));
+                txtNroBoleta.setBounds(54, 15, 58, 20);
+                txtNroBoleta.setToolTipText("Ingrese el número de boleta (ej: 23)");
+                panelEstadoBoleta.add(txtNroBoleta);
+
+                JButton btnConsultarBoleta = new JButton("Consultar");
+                btnConsultarBoleta.setFont(new Font("Cantarell", Font.PLAIN, 10));
+                btnConsultarBoleta.setBounds(116, 15, 78, 20);
+                btnConsultarBoleta.setBackground(new Color(0, 128, 0));
+                btnConsultarBoleta.setForeground(Color.WHITE);
+                panelEstadoBoleta.add(btnConsultarBoleta);
+
+                lblEstadoBoletaResult = new JLabel("<html><i>(ingrese número y consulte)</i></html>");
+                lblEstadoBoletaResult.setFont(new Font("Cantarell", Font.PLAIN, 10));
+                lblEstadoBoletaResult.setForeground(new Color(80, 80, 80));
+                lblEstadoBoletaResult.setBounds(5, 35, 210, 28);
+                panelEstadoBoleta.add(lblEstadoBoletaResult);
+
+                btnConsultarBoleta.addActionListener(e -> {
+                        String numBoleta = txtNroBoleta.getText().trim();
+                        if (numBoleta.isEmpty()) {
+                                JOptionPane.showMessageDialog(this,
+                                                "Ingrese el número de boleta a consultar.",
+                                                "Aviso", JOptionPane.WARNING_MESSAGE);
+                                return;
+                        }
+                        if (idSorteoActual <= 0) {
+                                JOptionPane.showMessageDialog(this,
+                                                "Primero consulte o genere un sorteo para que quede activo.",
+                                                "Sin Sorteo Activo", JOptionPane.WARNING_MESSAGE);
+                                return;
+                        }
+                        lblEstadoBoletaResult.setText("Consultando...");
+                        lblEstadoBoletaResult.setForeground(new Color(0, 80, 160));
+                        javax.swing.SwingWorker<PlazaCloudService.EstadoBoleta, Void> worker =
+                            new javax.swing.SwingWorker<PlazaCloudService.EstadoBoleta, Void>() {
+                                @Override
+                                protected PlazaCloudService.EstadoBoleta doInBackground() {
+                                        return plazaService.consultarEstadoBoleta(numBoleta, idSorteoActual);
+                                }
+                                @Override
+                                protected void done() {
+                                        try {
+                                                PlazaCloudService.EstadoBoleta eb = get();
+                                                if (eb == null) {
+                                                        lblEstadoBoletaResult.setText("Error: Sin respuesta del servidor.");
+                                                        lblEstadoBoletaResult.setForeground(Color.RED);
+                                                        return;
+                                                }
+                                                if ("ERROR".equals(eb.estadoRedencion)) {
+                                                        lblEstadoBoletaResult.setText("No encontrada: " + eb.mensaje);
+                                                        lblEstadoBoletaResult.setForeground(new Color(200, 80, 0));
+                                                        return;
+                                                }
+                                                boolean redimida = "CONSULTADA".equals(eb.estadoRedencion);
+                                                String estadoTexto = redimida ? "REDIMIDA" : "NO REDIMIDA";
+                                                Color estadoColor = redimida ? new Color(180, 0, 0) : new Color(0, 130, 0);
+                                                String linea2 = "";
+                                                if (eb.fechaGeneracion != null)
+                                                        linea2 += "Gen: " + formatFecha(eb.fechaGeneracion);
+                                                if (redimida && eb.fechaRedencion != null)
+                                                        linea2 += (linea2.isEmpty() ? "" : " | ") + "Red: " + formatFecha(eb.fechaRedencion);
+                                                String html = "<html>Boleta #" + eb.numeroBoleta + ": <b>" + estadoTexto + "</b>";
+                                                if (!linea2.isEmpty()) html += "<br><font size='2'>" + linea2 + "</font>";
+                                                html += "</html>";
+                                                lblEstadoBoletaResult.setText(html);
+                                                lblEstadoBoletaResult.setForeground(estadoColor);
+                                        } catch (Exception ex) {
+                                                lblEstadoBoletaResult.setText("Error: " + ex.getMessage());
+                                                lblEstadoBoletaResult.setForeground(Color.RED);
+                                        }
+                                }
+                            };
+                        worker.execute();
+                });
+
+                getContentPane().add(panelEstadoBoleta,
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(437, 402, 220, 66));
+
+                // ── Paso 7: Panel de Trazabilidad (compacto) ──
                 JPanel panelLog = new JPanel();
                 panelLog.setBorder(BorderFactory.createTitledBorder(
                                 BorderFactory.createLineBorder(new Color(100, 100, 100), 2),
                                 "Trazabilidad del Proceso",
                                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                                new Font("Cantarell", Font.BOLD, 13),
+                                new Font("Cantarell", Font.BOLD, 11),
                                 new Color(100, 100, 100)));
                 panelLog.setLayout(new java.awt.BorderLayout());
 
                 txtLog = new javax.swing.JTextArea();
                 txtLog.setEditable(false);
-                txtLog.setFont(new Font("Monospaced", Font.PLAIN, 11));
+                txtLog.setFont(new Font("Monospaced", Font.PLAIN, 10));
                 txtLog.setBackground(new Color(245, 245, 245));
                 JScrollPane scrollLog = new JScrollPane(txtLog);
                 panelLog.add(scrollLog, java.awt.BorderLayout.CENTER);
 
-                // Redirigir consola al txtLog
                 LogRedirector redirector = new LogRedirector(txtLog);
                 System.setOut(new java.io.PrintStream(redirector, true));
                 System.setErr(new java.io.PrintStream(redirector, true));
 
                 getContentPane().add(panelLog,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 695, 590, 160));
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 470, 655, 110));
 
-                this.setPreferredSize(new Dimension(1080, 880));
+                getContentPane().setPreferredSize(new Dimension(1045, 585));
                 this.pack();
+        }
+
+        /**
+         * Consulta un sorteo por ID desde la nube, carga sus rangos en la tabla
+         * y lo deja predeterminado para el siguiente rango a agregar.
+         */
+        private void consultarSorteoDesdeNube() {
+                if (txtIdSorteoConsulta == null || txtIdSorteoConsulta.getText().trim().isEmpty()) {
+                        JOptionPane.showMessageDialog(this,
+                                        "Ingrese el ID del sorteo a consultar.",
+                                        "Aviso", JOptionPane.WARNING_MESSAGE);
+                        return;
+                }
+                int idConsultar;
+                try {
+                        idConsultar = Integer.parseInt(txtIdSorteoConsulta.getText().trim());
+                } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this,
+                                        "El ID del sorteo debe ser un número entero.",
+                                        "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                }
+
+                System.out.println("[App] Consultando sorteo ID=" + idConsultar + " desde la nube...");
+                txtCodSorteo.setText("Consultando...");
+                txtCodSorteo.setBackground(new Color(255, 255, 200));
+
+                javax.swing.SwingWorker<PlazaCloudService.SorteoDetalle, Void> worker =
+                    new javax.swing.SwingWorker<PlazaCloudService.SorteoDetalle, Void>() {
+                        @Override
+                        protected PlazaCloudService.SorteoDetalle doInBackground() {
+                                return plazaService != null
+                                        ? plazaService.consultarSorteoConRangos(idConsultar)
+                                        : null;
+                        }
+                        @Override
+                        protected void done() {
+                                try {
+                                        PlazaCloudService.SorteoDetalle detalle = get();
+                                        if (detalle == null) {
+                                                txtCodSorteo.setText("ERROR: Sorteo no encontrado o sin conexión");
+                                                txtCodSorteo.setBackground(new Color(255, 200, 200));
+                                                JOptionPane.showMessageDialog(Generador_Boletas.this,
+                                                                "No se encontró el sorteo #" + idConsultar
+                                                                                + "\nVerifique el ID y la conexión.",
+                                                                "Sorteo No Encontrado", JOptionPane.WARNING_MESSAGE);
+                                                return;
+                                        }
+                                        // Actualizar estado
+                                        idSorteoActual = detalle.idSorteo;
+                                        codSorteoTexto = String.valueOf(detalle.idSorteo);
+                                        txtCodSorteo.setText("Sorteo #" + detalle.idSorteo + " - " + detalle.nombreSorteo);
+                                        txtCodSorteo.setBackground(new Color(200, 255, 200));
+                                        System.out.println("[App] Sorteo cargado: #" + detalle.idSorteo
+                                                        + " - " + detalle.nombreSorteo);
+
+                                        // Poblar tabla de rangos
+                                        if (modeloRangos != null) {
+                                                modeloRangos.setRowCount(0);
+                                                for (PlazaCloudService.RangoPremio r : detalle.rangos) {
+                                                        modeloRangos.addRow(new Object[] {
+                                                                String.valueOf(r.rangoInicial),
+                                                                String.valueOf(r.rangoFinal),
+                                                                r.mensajePremio
+                                                        });
+                                                }
+                                        }
+
+                                        int nRangos = detalle.rangos.size();
+                                        JOptionPane.showMessageDialog(Generador_Boletas.this,
+                                                        "Sorteo cargado exitosamente:\n"
+                                                        + "  ID: " + detalle.idSorteo + "\n"
+                                                        + "  Nombre: " + detalle.nombreSorteo + "\n"
+                                                        + "  Rangos de premio: " + nRangos + "\n\n"
+                                                        + "Queda predeterminado para generar boletas y rangos adicionales.",
+                                                        "Sorteo Sincronizado", JOptionPane.INFORMATION_MESSAGE);
+                                } catch (Exception ex) {
+                                        txtCodSorteo.setText("ERROR: " + ex.getMessage());
+                                        txtCodSorteo.setBackground(new Color(255, 200, 200));
+                                }
+                        }
+                    };
+                worker.execute();
         }
 
         /**
@@ -518,33 +769,65 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         try {
                                 int ini  = Integer.parseInt(modeloRangos.getValueAt(i, 0).toString().trim());
                                 int fin  = Integer.parseInt(modeloRangos.getValueAt(i, 1).toString().trim());
-                                int prio = Integer.parseInt(modeloRangos.getValueAt(i, 2).toString().trim());
-                                String msg = modeloRangos.getValueAt(i, 3).toString().trim();
+                                String msg = modeloRangos.getValueAt(i, 2).toString().trim();
                                 if (ini > fin) {
                                         JOptionPane.showMessageDialog(this,
                                                         "Fila " + (i + 1) + ": Rango Ini (" + ini + ") no puede ser mayor que Rango Fin (" + fin + ").",
                                                         "Error", JOptionPane.ERROR_MESSAGE);
                                         return;
                                 }
-                                rangos.add(new PlazaCloudService.RangoPremio(ini, fin, msg, null, prio));
+                                rangos.add(new PlazaCloudService.RangoPremio(ini, fin, msg, null, 1));
                         } catch (NumberFormatException ex) {
                                 JOptionPane.showMessageDialog(this,
-                                                "Rango inválido en fila " + (i + 1) + ". Ini, Fin y Prioridad deben ser números enteros.",
+                                                "Rango inválido en fila " + (i + 1) + ". Ini y Fin deben ser números enteros.",
                                                 "Error", JOptionPane.ERROR_MESSAGE);
                                 return;
                         }
                 }
 
-                PlazaCloudService.CloudResult result = plazaService.registrarRangos(idSorteoActual, rangos);
-                if (result.exito) {
-                        JOptionPane.showMessageDialog(this,
-                                        result.mensaje,
-                                        "Rangos Sincronizados", JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                        JOptionPane.showMessageDialog(this,
-                                        "Error: " + result.mensaje,
-                                        "Error de Sincronización", JOptionPane.ERROR_MESSAGE);
-                }
+                // Ejecutar limpiar+registrar en hilo de fondo (no bloquear EDT)
+                final int idSorteoSync = idSorteoActual;
+                final List<PlazaCloudService.RangoPremio> rangosFinal = rangos;
+                javax.swing.SwingWorker<String, Void> syncWorker = new javax.swing.SwingWorker<String, Void>() {
+                        @Override
+                        protected String doInBackground() {
+                                System.out.println("[App] Limpiando rangos en nube para sorteo #" + idSorteoSync + "...");
+                                PlazaCloudService.CloudResult limpiarResult = plazaService.limpiarRangos(idSorteoSync);
+                                if (!limpiarResult.exito) {
+                                        System.err.println("[App] Error al limpiar rangos: " + limpiarResult.mensaje);
+                                        return "LIMPIAR_ERROR:" + limpiarResult.mensaje;
+                                }
+                                System.out.println("[App] Rangos limpiados. Registrando " + rangosFinal.size() + " rangos locales...");
+                                PlazaCloudService.CloudResult result = plazaService.registrarRangos(idSorteoSync, rangosFinal);
+                                if (result.exito) return "OK:" + result.mensaje;
+                                return "REGISTRAR_ERROR:" + result.mensaje;
+                        }
+                        @Override
+                        protected void done() {
+                                try {
+                                        String res = get();
+                                        if (res.startsWith("OK:")) {
+                                                JOptionPane.showMessageDialog(Generador_Boletas.this,
+                                                        res.substring(3),
+                                                        "Rangos Sincronizados", JOptionPane.INFORMATION_MESSAGE);
+                                        } else if (res.startsWith("LIMPIAR_ERROR:")) {
+                                                JOptionPane.showMessageDialog(Generador_Boletas.this,
+                                                        "Error al limpiar rangos en la nube:\n" + res.substring(14)
+                                                        + "\n\nVerifique que el endpoint 'rangos/limpiar' esté desplegado en APEX.\nNo se aplicaron cambios.",
+                                                        "Error de Sincronización", JOptionPane.ERROR_MESSAGE);
+                                        } else {
+                                                JOptionPane.showMessageDialog(Generador_Boletas.this,
+                                                        "Error al registrar rangos: " + res.substring(res.indexOf(':') + 1),
+                                                        "Error de Sincronización", JOptionPane.ERROR_MESSAGE);
+                                        }
+                                } catch (Exception ex) {
+                                        JOptionPane.showMessageDialog(Generador_Boletas.this,
+                                                "Error inesperado: " + ex.getMessage(),
+                                                "Error", JOptionPane.ERROR_MESSAGE);
+                                }
+                        }
+                };
+                syncWorker.execute();
         }
 
         /**
@@ -956,7 +1239,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                 .addGap(0, 0, Short.MAX_VALUE));
                 jPanel9Layout.setVerticalGroup(
                                 jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                                .addGap(0, 285, Short.MAX_VALUE));
+                                                .addGap(0, 0, Short.MAX_VALUE));
 
                 javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
                 jPanel1.setLayout(jPanel1Layout);
@@ -1253,7 +1536,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE,
                                                                                 Short.MAX_VALUE)));
 
-                getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 6, 730, 430));
+                getContentPane().add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 655, 340));
 
                 javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
                 jPanel2.setLayout(jPanel2Layout);
@@ -1263,7 +1546,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                 .addContainerGap(5, 5)
                                                                 .addComponent(lblImagen1,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE,
-                                                                                225,
+                                                                                100,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
                                                                 .addContainerGap(5, Short.MAX_VALUE)));
                 jPanel2Layout.setVerticalGroup(
@@ -1272,11 +1555,11 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                 .addContainerGap(5, 5)
                                                                 .addComponent(lblImagen1,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE,
-                                                                                185,
+                                                                                80,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
                                                                 .addContainerGap(5, Short.MAX_VALUE)));
 
-                getContentPane().add(jPanel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(235, 440, 237, 200));
+                getContentPane().add(jPanel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(110, 342, 112, 92));
 
                 javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
                 jPanel3.setLayout(jPanel3Layout);
@@ -1286,7 +1569,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                 .addContainerGap(5, 5)
                                                                 .addComponent(lblImagen,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE,
-                                                                                220,
+                                                                                100,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
                                                                 .addContainerGap(5, Short.MAX_VALUE)));
                 jPanel3Layout.setVerticalGroup(
@@ -1295,11 +1578,11 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                 .addContainerGap(5, 5)
                                                                 .addComponent(lblImagen,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE,
-                                                                                185,
+                                                                                80,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
                                                                 .addContainerGap(5, Short.MAX_VALUE)));
 
-                getContentPane().add(jPanel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 440, 235, 200));
+                getContentPane().add(jPanel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 342, 110, 92));
 
                 jPanel5.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
 
@@ -1594,10 +1877,12 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                                 .addComponent(txtFilePDF,
                                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE, 318,
                                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
-                                                                                .addComponent(jLabel8)
-                                                                                .addComponent(txtOportunidades,
-                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE, 57,
-                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                                                .addGroup(jPanel5Layout.createSequentialGroup()
+                                                                                                .addComponent(jLabel8)
+                                                                                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                                                                                .addComponent(txtOportunidades,
+                                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE, 57,
+                                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE))
                                                                                 .addGroup(jPanel5Layout.createSequentialGroup()
                                                                                                 .addComponent(jTabbedPane1,
                                                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE, 139,
@@ -1635,17 +1920,17 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                                 javax.swing.GroupLayout.DEFAULT_SIZE,
                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
                                                                 .addGap(10, 10, 10)
-                                                                .addComponent(jLabel8)
-                                                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                                                .addComponent(txtOportunidades,
-                                                                                javax.swing.GroupLayout.PREFERRED_SIZE,
-                                                                                javax.swing.GroupLayout.DEFAULT_SIZE,
-                                                                                javax.swing.GroupLayout.PREFERRED_SIZE)
+                                                                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                                                                .addComponent(jLabel8)
+                                                                                .addComponent(txtOportunidades,
+                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE,
+                                                                                                javax.swing.GroupLayout.DEFAULT_SIZE,
+                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE))
                                                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                                                 .addGroup(jPanel5Layout.createParallelGroup(
                                                                                 javax.swing.GroupLayout.Alignment.LEADING)
                                                                                 .addComponent(jTabbedPane1,
-                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE, 234,
+                                                                                                javax.swing.GroupLayout.PREFERRED_SIZE, 175,
                                                                                                 javax.swing.GroupLayout.PREFERRED_SIZE)
                                                                                 .addGroup(jPanel5Layout.createSequentialGroup()
                                                                                                 .addComponent(jLabel10)
@@ -1663,7 +1948,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                                                 .addComponent(jRBcafe)))
                                                                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)));
 
-                getContentPane().add(jPanel5, new org.netbeans.lib.awtextra.AbsoluteConstraints(736, 6, 330, 450));
+                getContentPane().add(jPanel5, new org.netbeans.lib.awtextra.AbsoluteConstraints(660, 0, 285, 435));
 
                 pack();
         }// </editor-fold>//GEN-END:initComponents
@@ -1742,9 +2027,9 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 }
 
                 String path = this.txtImagen.getText();
-                lblImagen.setIcon(iconEscalada(path, 220, 185));
+                lblImagen.setIcon(iconEscalada(path, 215, 198));
                 String pathPremio = this.txtPremio.getText();
-                lblImagen1.setIcon(iconEscalada(pathPremio, 225, 185));
+                lblImagen1.setIcon(iconEscalada(pathPremio, 215, 198));
 
         }// GEN-LAST:event_btnFondoActionPerformed
 
@@ -1793,7 +2078,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 }
 
                 String pathPremio = this.txtPremio.getText();
-                lblImagen1.setIcon(iconEscalada(pathPremio, 225, 185));
+                lblImagen1.setIcon(iconEscalada(pathPremio, 215, 198));
         }// GEN-LAST:event_btnFondo2ActionPerformed
 
         private void txtOportunidadesActionPerformed(java.awt.event.ActionEvent evt) {// GEN-FIRST:event_txtOportunidadesActionPerformed
