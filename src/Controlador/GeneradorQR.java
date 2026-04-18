@@ -18,7 +18,7 @@ public class GeneradorQR {
     }
 
     public static com.itextpdf.text.Image crearCodigoQRBoleta(String tokenUUID, int anchoPixeles) throws Exception {
-        String enlaceScaneo = "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/qr/consultar/" + tokenUUID;
+        String enlaceScaneo = "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/qr/ver/" + tokenUUID;
         QRCodeWriter escritor = new QRCodeWriter();
         Map<EncodeHintType, ErrorCorrectionLevel> mapaSeguridad = new HashMap<>();
         mapaSeguridad.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.Q);

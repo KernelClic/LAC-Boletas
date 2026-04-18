@@ -20,6 +20,8 @@ CREATE OR REPLACE PACKAGE PKG_BOLETAS_API AS
     PROCEDURE obtener_ultimo_sorteo(p_id_plaza IN NUMBER);
     -- Registrar rangos de premio (POST /rangos/registrar)
     PROCEDURE registrar_rangos(p_payload IN CLOB);
+    -- Consulta de premio por QR con respuesta HTML formateada (GET /qr/ver/:token)
+    PROCEDURE consultar_premio_qr_html(p_qr_token IN VARCHAR2);
 END PKG_BOLETAS_API;
 /
 
@@ -297,6 +299,168 @@ CREATE OR REPLACE PACKAGE BODY PKG_BOLETAS_API AS
 
     END registrar_rangos;
 
+    -- =========================================================================
+    -- CONSULTAR_PREMIO_QR_HTML: Igual lógica que consultar_premio_qr, pero
+    -- devuelve una página HTML responsiva con emoticonos para mostrar al
+    -- usuario al escanear el QR desde el navegador del teléfono.
+    -- =========================================================================
+    PROCEDURE consultar_premio_qr_html(p_qr_token IN VARCHAR2) IS
+        v_boleta_id    trp_boletas.id_boleta%TYPE;
+        v_num_boleta   trp_boletas.numero_boleta%TYPE;
+        v_sorteo_id    trp_boletas.id_sorteo%TYPE;
+        v_estado       trp_boletas.estado_redencion%TYPE;
+        v_mensaje      VARCHAR2(500) := 'Sigue intentando... Esta vez no hubo suerte.';
+        v_tiene_premio BOOLEAN := FALSE;
+
+        -- Procedimiento anidado: emite la página HTML completa.
+        PROCEDURE emitir_pagina(
+            p_emoji        IN VARCHAR2,
+            p_titulo       IN VARCHAR2,
+            p_subtitulo    IN VARCHAR2,
+            p_badge_texto  IN VARCHAR2,
+            p_badge_color  IN VARCHAR2,
+            p_mensaje_html IN VARCHAR2,
+            p_bg_gradiente IN VARCHAR2,
+            p_titulo_color IN VARCHAR2
+        ) IS
+        BEGIN
+            HTP.p('<!DOCTYPE html>');
+            HTP.p('<html lang="es">');
+            HTP.p('<head>');
+            HTP.p('<meta charset="UTF-8">');
+            HTP.p('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
+            HTP.p('<meta http-equiv="Cache-Control" content="no-store">');
+            HTP.p('<title>' || p_titulo || ' - Boleta</title>');
+            HTP.p('<style>');
+            HTP.p('* { box-sizing: border-box; margin: 0; padding: 0; }');
+            HTP.p('body { font-family: Arial, Helvetica, sans-serif; min-height: 100vh;');
+            HTP.p('       display: flex; align-items: center; justify-content: center;');
+            HTP.p('       background: ' || p_bg_gradiente || '; padding: 20px; }');
+            HTP.p('.card { background: rgba(255,255,255,0.95); border-radius: 24px;');
+            HTP.p('        padding: 40px 28px; max-width: 440px; width: 100%;');
+            HTP.p('        text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.28); }');
+            HTP.p('.emo { font-size: 96px; line-height: 1.1; margin-bottom: 16px; }');
+            HTP.p('h1 { font-size: 2.4em; color: ' || p_titulo_color || '; margin-bottom: 6px;');
+            HTP.p('     font-weight: 900; text-shadow: 0 2px 6px rgba(0,0,0,0.15); }');
+            HTP.p('.subtitulo { font-size: 1.0em; color: #666; margin-bottom: 20px; }');
+            HTP.p('.badge { display: inline-block; padding: 7px 24px; border-radius: 30px;');
+            HTP.p('         font-size: 0.95em; font-weight: bold; color: #fff;');
+            HTP.p('         background: ' || p_badge_color || '; margin-bottom: 22px;');
+            HTP.p('         letter-spacing: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }');
+            HTP.p('.msg-box { border-radius: 16px; padding: 22px 20px;');
+            HTP.p('           font-size: 1.5em; font-weight: 700; color: ' || p_titulo_color || ';');
+            HTP.p('           line-height: 1.5; background: rgba(255,255,255,0.6);');
+            HTP.p('           border: 3px solid ' || p_badge_color || ';');
+            HTP.p('           box-shadow: 0 4px 16px rgba(0,0,0,0.12); }');
+            HTP.p('</style>');
+            HTP.p('</head>');
+            HTP.p('<body>');
+            HTP.p('<div class="card">');
+            HTP.p('  <div class="emo">' || p_emoji || '</div>');
+            HTP.p('  <h1>' || p_titulo || '</h1>');
+            HTP.p('  <div class="subtitulo">' || p_subtitulo || '</div>');
+            HTP.p('  <span class="badge">' || p_badge_texto || '</span>');
+            HTP.p('  <div class="msg-box">' || p_mensaje_html || '</div>');
+            HTP.p('</div>');
+            HTP.p('</body>');
+            HTP.p('</html>');
+        END emitir_pagina;
+
+    BEGIN
+        -- Paso 1: Verificar autenticidad del token
+        SELECT id_boleta, numero_boleta, id_sorteo, estado_redencion
+        INTO v_boleta_id, v_num_boleta, v_sorteo_id, v_estado
+        FROM trp_boletas WHERE qr_token = p_qr_token;
+
+        -- Paso 2: Impedir fraude de doble consulta
+        IF v_estado = 'CONSULTADA' THEN
+            emitir_pagina(
+                p_emoji        => '&#9888;&#65039; &#128274;',
+                p_titulo       => 'Ya fue consultada',
+                p_subtitulo    => 'Boleta N&deg; ' || v_num_boleta,
+                p_badge_texto  => '&#128683; YA REDIMIDA',
+                p_badge_color  => '#e67e22',
+                p_mensaje_html => 'Esta boleta <strong>ya fue redimida</strong> anteriormente.<br>'
+                                  || 'Para dudas com&uacute;nicate con soporte.',
+                p_bg_gradiente => 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+                p_titulo_color => '#c0392b'
+            );
+            RETURN;
+        END IF;
+
+        -- Paso 3: Comprobar rango de premios
+        BEGIN
+            SELECT mensaje_premio INTO v_mensaje
+            FROM (
+                SELECT mensaje_premio
+                FROM cnl_rangos_premio rp
+                WHERE rp.id_sorteo = v_sorteo_id
+                  AND rp.estado = 'ACTIVO'
+                  AND TO_NUMBER(v_num_boleta) BETWEEN rp.rango_inicial AND rp.rango_final
+                ORDER BY NVL(rp.prioridad, 1) DESC
+            ) WHERE ROWNUM = 1;
+            v_tiene_premio := TRUE;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN NULL;
+        END;
+
+        -- Paso 4: Marcar boleta como consultada y registrar auditoría
+        UPDATE trp_boletas SET estado_redencion = 'CONSULTADA' WHERE id_boleta = v_boleta_id;
+        INSERT INTO trd_consultas_qr (id_boleta, ip_dispositivo, agente_usuario, mensaje_mostrado)
+        VALUES (
+            v_boleta_id,
+            COALESCE(OWA_UTIL.get_cgi_env('HTTP_X_FORWARDED_FOR'), OWA_UTIL.get_cgi_env('REMOTE_ADDR'), 'IP-UNKN'),
+            OWA_UTIL.get_cgi_env('HTTP_USER_AGENT'),
+            v_mensaje
+        );
+        COMMIT;
+
+        -- Paso 5: Retornar página HTML según resultado
+        IF v_tiene_premio THEN
+            emitir_pagina(
+                p_emoji        => '&#127881; &#127942; &#127882;',
+                p_titulo       => '&iexcl;Ganaste!',
+                p_subtitulo    => 'Boleta N&deg; ' || v_num_boleta || ' &mdash; &iexcl;Felicidades!',
+                p_badge_texto  => '&#127942; GANADOR',
+                p_badge_color  => '#27ae60',
+                p_mensaje_html => v_mensaje,
+                p_bg_gradiente => 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                p_titulo_color => '#1a5c38'
+            );
+        ELSE
+            emitir_pagina(
+                p_emoji        => '&#128532; &#127925;',
+                p_titulo       => '&iquest;Suerte pr&oacute;xima vez!',
+                p_subtitulo    => 'Boleta N&deg; ' || v_num_boleta,
+                p_badge_texto  => '&#128532; SIN PREMIO',
+                p_badge_color  => '#7f8c8d',
+                p_mensaje_html => v_mensaje || '<br><br><em>&#161;No te desanimes! Sigue participando.</em>',
+                p_bg_gradiente => 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)',
+                p_titulo_color => '#2c3e50'
+            );
+        END IF;
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            INSERT INTO aud_intentos_qr (qr_token_intentado, ip_origen, motivo_rechazo)
+            VALUES (
+                p_qr_token,
+                COALESCE(OWA_UTIL.get_cgi_env('HTTP_X_FORWARDED_FOR'), OWA_UTIL.get_cgi_env('REMOTE_ADDR'), 'IP-UNKN'),
+                'Boleta Inexistente. QR Adulterado o Sorteo inexistente.'
+            );
+            emitir_pagina(
+                p_emoji        => '&#10060; &#128683;',
+                p_titulo       => 'QR Inv&aacute;lido',
+                p_subtitulo    => 'Este c&oacute;digo no est&aacute; en los registros oficiales',
+                p_badge_texto  => '&#10060; ERROR',
+                p_badge_color  => '#c0392b',
+                p_mensaje_html => 'La boleta escaneada <strong>no existe</strong> en los registros oficiales.'
+                                  || '<br><br>&#9888;&#65039; Posible QR adulterado o sorteo inexistente.',
+                p_bg_gradiente => 'linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%)',
+                p_titulo_color => '#7b0000'
+            );
+    END consultar_premio_qr_html;
+
 END PKG_BOLETAS_API;
 /
 
@@ -361,10 +525,10 @@ BEGIN
       p_method         => 'GET',
       p_source_type    => 'plsql/block',
       p_mimes_allowed  => '',
-      p_comments       => 'Devuelve la información procesada usando HTP.p',
+      p_comments       => 'Devuelve página HTML formateada con resultado del premio (compatible con QR ya impresos)',
       p_source         => 'BEGIN
-                             OWA_UTIL.mime_header(''application/json'', TRUE);
-                             PKG_BOLETAS_API.consultar_premio_qr(p_qr_token => :token);
+                             OWA_UTIL.mime_header(''text/html; charset=UTF-8'', TRUE);
+                             PKG_BOLETAS_API.consultar_premio_qr_html(p_qr_token => :token);
                            END;'
   );
 
@@ -465,6 +629,32 @@ BEGIN
       p_source         => 'BEGIN
                              OWA_UTIL.mime_header(''application/json'', TRUE);
                              PKG_BOLETAS_API.registrar_rangos(p_payload => :body_text);
+                           END;'
+  );
+
+  -- =========================================================================
+  -- Endpoint: GET /qr/ver/:token  (página HTML con resultado para escaneo QR)
+  -- =========================================================================
+  ORDS.DEFINE_TEMPLATE(
+      p_module_name    => 'api_boletas',
+      p_pattern        => 'qr/ver/:token',
+      p_priority       => 0,
+      p_etag_type      => 'HASH',
+      p_etag_query     => NULL,
+      p_comments       => 'Muestra el resultado de la boleta en HTML formateado para escáner QR / navegador'
+  );
+
+  ORDS.DEFINE_HANDLER(
+      p_module_name    => 'api_boletas',
+      p_pattern        => 'qr/ver/:token',
+      p_method         => 'GET',
+      p_source_type    => 'plsql/block',
+      p_items_per_page => 0,
+      p_mimes_allowed  => '',
+      p_comments       => 'Devuelve HTML responsivo con emoticonos indicando si la boleta ganó o perdió',
+      p_source         => 'BEGIN
+                             OWA_UTIL.mime_header(''text/html; charset=UTF-8'', TRUE);
+                             PKG_BOLETAS_API.consultar_premio_qr_html(p_qr_token => :token);
                            END;'
   );
 
