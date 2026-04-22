@@ -66,9 +66,9 @@ public class Boleta {
                 "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/qr/consultar/" + uuidAPI, 1, 1, null);
         Image QRimage = my_code.getImage();
         canvas.saveState();
-        QRimage.setAbsolutePosition(x + ancho - 42 * scaleX, y + alto - 65 * scaleY);
-        QRimage.scaleAbsoluteWidth(30 * scaleFont);
-        QRimage.scaleAbsoluteHeight(30 * scaleFont);
+        QRimage.setAbsolutePosition(x + ancho - 48 * scaleX, y + alto - 71 * scaleY);
+        QRimage.scaleAbsoluteWidth(36 * scaleFont);
+        QRimage.scaleAbsoluteHeight(36 * scaleFont);
         QRimage.setBorderColor(BaseColor.BLACK);
         canvas.addImage(QRimage);
         canvas.restoreState();

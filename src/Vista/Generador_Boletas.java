@@ -284,6 +284,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         public Generador_Boletas() {
                 initComponents();
+                this.setTitle("Boletas - Nube");
                 this.setLocationRelativeTo(null);
                 Date objDate = new Date();
 
