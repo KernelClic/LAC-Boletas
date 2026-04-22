@@ -240,6 +240,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         public Generador_Boletas() {
                 initComponents();
+                this.setTitle("Boletas - Local");
                 this.setLocationRelativeTo(null);
                 Date objDate = new Date();
 
@@ -314,7 +315,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 getContentPane().add(panelRangos,
                                 new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 460, 600, 135));
 
-                this.setPreferredSize(new Dimension(1080, 640));
+                this.setPreferredSize(new Dimension(1080, 700));
                 this.pack();
         }
 
