@@ -63,11 +63,12 @@ public class Boleta {
         canvas.addImage(img);
         canvas.restoreState();
 
-        // marco interno boleta relleno por Premio imagen
+        // Premio imagen: tope alineado con msg1 (38 desde arriba), reducida ~14%
+        // bottom = y+alto-38*scaleY - 60*scaleY = y+alto-98*scaleY
         canvas.saveState();
-        pre.setAbsolutePosition(x + 44.0F * scaleX, y + alto - 110.0F * scaleY);
-        pre.scaleAbsoluteWidth(66 * scaleX);
-        pre.scaleAbsoluteHeight(80 * scaleY);
+        pre.setAbsolutePosition(x + 60.0F * scaleX, y + alto - 98.0F * scaleY);
+        pre.scaleAbsoluteWidth(48 * scaleX);
+        pre.scaleAbsoluteHeight(60 * scaleY);
         canvas.addImage(pre);
         canvas.restoreState();
 
@@ -155,80 +156,65 @@ public class Boleta {
          * canvas.restoreState();
          * // **************************************************************
          */
+        // ── Bloque de textos informativos y valor ──────────────────────────────────
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
         canvas.setLineWidth(0.5F);
-        canvas.setRGBColorStroke(0, 0, 0);
-        /*
-         * canvas.setRGBColorFill(0, 0, 0);
-         * canvas.setFontAndSize(bf, 10.0F);
-         * canvas.setTextMatrix(x + (ancho / 2) - 05.0F, y + alto - 32.0F);
-         * canvas.showText(fecha);
-         */
-        // Texto Valor
-        canvas.setLineWidth(0.7F);
-        canvas.setFontAndSize(bf, 12.0F);
-        // canvas.setTextMatrix(x + (ancho -45.0F) , y + alto - 20.0F);
-        // canvas.showText("Valor");
-        // valor de la boleta
-        canvas.setRGBColorStroke(255, 0, 0);
-        canvas.setRGBColorFill(255, 0, 0);
-        canvas.setLineWidth(0.7F);
-        canvas.setFontAndSize(bf, 10.0F * scaleFont);
-        canvas.setTextMatrix(x + 155 * scaleX, y + alto - 65.0F * scaleY);
-        canvas.showText(valor);
-        canvas.endText();
-        canvas.restoreState();
+        // stroke en color del texto seleccionado (aplica a todo el bloque)
+        if (colortexto == 1) { canvas.setRGBColorStroke(255, 0, 0); }
+        else if (colortexto == 2) { canvas.setRGBColorStroke(4, 180, 4); }
+        else if (colortexto == 3) { canvas.setRGBColorStroke(46, 46, 254); }
+        else if (colortexto == 4) { canvas.setRGBColorStroke(180, 4, 174); }
+        else if (colortexto == 5) { canvas.setRGBColorStroke(95, 76, 11); }
+        else                      { canvas.setRGBColorStroke(0, 0, 0); }
 
-        canvas.saveState();
-        canvas.beginText();
-        canvas.setTextRenderingMode(2);
-        canvas.setLineWidth(0.5F);
-        if (colortexto == 1) {
-            canvas.setRGBColorStroke(255, 0, 0);
-        }
-        if (colortexto == 2) {
-            canvas.setRGBColorStroke(4, 180, 4);
-        }
-        if (colortexto == 3) {
-            canvas.setRGBColorStroke(46, 46, 254);
-        }
-        if (colortexto == 4) {
-            canvas.setRGBColorStroke(180, 4, 174);
-        }
-        if (colortexto == 5) {
-            canvas.setRGBColorStroke(95, 76, 11);
-        }
-        if (colortexto == 6) {
-            canvas.setRGBColorStroke(0, 0, 0);
-        }
+        // msg1 "El APORTE lo hace participe...": mismo renglón que fecha, a su izquierda
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 8.0F * scaleFont);
+        canvas.setFontAndSize(bf, 6.0F * scaleFont);
         canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 35.0F * scaleY);
         canvas.showText(msg1);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 45.0F * scaleY);
+
+        // Línea 1: "Responsable :" (negro) + "XXX XXX XXXXX" (color del texto)
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, 7.0F * scaleFont);
+        canvas.setTextMatrix(x + 112.0F * scaleX, y + alto - 50.0F * scaleY);
         canvas.showText(msg2);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 55.0F * scaleY);
+        // msg3 en color seleccionado (fill = colortexto)
+        if (colortexto == 1) { canvas.setRGBColorFill(255, 0, 0); }
+        else if (colortexto == 2) { canvas.setRGBColorFill(4, 180, 4); }
+        else if (colortexto == 3) { canvas.setRGBColorFill(46, 46, 254); }
+        else if (colortexto == 4) { canvas.setRGBColorFill(180, 4, 174); }
+        else if (colortexto == 5) { canvas.setRGBColorFill(95, 76, 11); }
+        else                      { canvas.setRGBColorFill(0, 0, 0); }
+        canvas.setTextMatrix(x + 165.0F * scaleX, y + alto - 50.0F * scaleY);
         canvas.showText(msg3);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 65.0F * scaleY);
+
+        // Línea 2: "APORTE" (negro) + valor de la boleta (rojo) — misma línea
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, 7.0F * scaleFont);
+        canvas.setTextMatrix(x + 112.0F * scaleX, y + alto - 58.0F * scaleY);
         canvas.showText(msg4);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 75.0F * scaleY);
+        canvas.setRGBColorStroke(255, 0, 0);
+        canvas.setRGBColorFill(255, 0, 0);
+        canvas.setFontAndSize(bf, 8.0F * scaleFont);
+        canvas.setTextMatrix(x + 142.0F * scaleX, y + alto - 58.0F * scaleY);
+        canvas.showText(valor);
+
+        // Líneas 3-6: condiciones, columna x+112, espaciado 8pt, fuente 6.5pt
+        canvas.setRGBColorStroke(0, 0, 0);
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, 6.5F * scaleFont);
+        canvas.setTextMatrix(x + 112.0F * scaleX, y + alto - 66.0F * scaleY);
         canvas.showText(msg5);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 85.0F * scaleY);
+        canvas.setTextMatrix(x + 112.0F * scaleX, y + alto - 74.0F * scaleY);
         canvas.showText(msg6);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 95.0F * scaleY);
+        canvas.setTextMatrix(x + 112.0F * scaleX, y + alto - 82.0F * scaleY);
         canvas.showText(msg7);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 105.0F * scaleY);
+        canvas.setTextMatrix(x + 112.0F * scaleX, y + alto - 90.0F * scaleY);
         canvas.showText(msg8);
 
-        // canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 115.0F * scaleY);
-        // canvas.showText(msg9);
-
-        canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 10.0F);
-
-        // fecha
+        // fecha (rojo, derecha, mismo renglón que msg1)
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);
         canvas.setFontAndSize(bf, 12.0F * scaleFont);
@@ -489,12 +475,13 @@ public class Boleta {
 
         // ── QR codes: dibujados AL FINAL, encima de todos los demás elementos ──
         // Contenido: QR Izquierda = mensaje del premio  |  QR Derecha = números de oportunidades
-        float qrSize = 35 * scaleFont;
-        float qrY    = y + alto - 100 * scaleY;   // base: y+45 para alto=145
-        float qrBgPad = 2 * scaleFont;             // padding del fondo blanco
+        float qrSize  = 44 * scaleFont;             // +25% respecto al tamaño original (35→44)
+        // qrY: centrado vertical dentro de la zona de contenido (entre línea título y números)
+        float qrY     = y + alto - 78.5f * scaleY - qrSize / 2.0f;
+        float qrBgPad = 2 * scaleFont;              // padding del fondo blanco
 
-        // QR Premio (IZQUIERDA) con fondo blanco
-        float qrPremioX = x + 5 * scaleX;
+        // QR Premio (IZQUIERDA) con fondo blanco — centrado en zona izquierda (margen 8pt)
+        float qrPremioX = x + 8 * scaleX;
         try {
             canvas.saveState();
             canvas.setColorFill(BaseColor.WHITE);
@@ -512,8 +499,8 @@ public class Boleta {
             System.err.println("[QR] Error QR Premio: " + e.getMessage());
         }
 
-        // QR Info (DERECHA) con fondo blanco
-        float qrInfoX = x + ancho - 40 * scaleX;
+        // QR Info (DERECHA) con fondo blanco — centrado en zona derecha (margen 8pt)
+        float qrInfoX = x + ancho - 8 * scaleX - qrSize;
         try {
             canvas.saveState();
             canvas.setColorFill(BaseColor.WHITE);
