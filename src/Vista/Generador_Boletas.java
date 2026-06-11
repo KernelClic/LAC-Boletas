@@ -1003,7 +1003,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                         color,
                                                         stmpPrint, index,
                                                         img, pre, trackUUID, codSorteoTexto,
-                                                        boletaConsecutivoFormateada);
+                                                        boletaConsecutivoFormateada,
+                                                        tipoReporte);
 
                                         index += opor;
                                         x = x + paso_x;

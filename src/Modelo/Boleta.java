@@ -25,7 +25,8 @@ public class Boleta {
             int oportun,
             int colortexto,
             ArrayList<String> stmpPrint, int idx,
-            Image img, Image pre, String uuidAPI, String codSorteo, String numeroBoleta)
+            Image img, Image pre, String uuidAPI, String codSorteo, String numeroBoleta,
+            int tipoReporte)
             throws DocumentException, IOException {
 
         ArrayList<String> impresos = new ArrayList<>();
@@ -66,9 +67,24 @@ public class Boleta {
                 "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/qr/consultar/" + uuidAPI, 1, 1, null);
         Image QRimage = my_code.getImage();
         canvas.saveState();
-        QRimage.setAbsolutePosition(x + ancho - 48 * scaleX, y + alto - 71 * scaleY);
-        QRimage.scaleAbsoluteWidth(36 * scaleFont);
-        QRimage.scaleAbsoluteHeight(36 * scaleFont);
+        float qrSize, qrPosX, qrPosY;
+        if (tipoReporte == 2) {
+            // 15 boletas: QR ampliado y ajustado a los textos que lo limitan
+            //   derecha -> borde interno de la boleta (x + ancho - 3)
+            //   arriba  -> justo debajo de la fecha
+            //   izquierda -> a la derecha del valor "$ ..."
+            //   abajo   -> espacio libre sobre los numeros grandes
+            qrSize = 44.0F;
+            qrPosX = x + ancho - 47.0F; // borde derecho ~ x + ancho - 3
+            qrPosY = y + 69.0F;         // top ~ y + 113, casi tocando la fecha (baseline y + 113.8) sin traslapar
+        } else {
+            qrSize = 36.0F * scaleFont;
+            qrPosX = x + ancho - 48.0F * scaleX;
+            qrPosY = y + alto - 71.0F * scaleY;
+        }
+        QRimage.setAbsolutePosition(qrPosX, qrPosY);
+        QRimage.scaleAbsoluteWidth(qrSize);
+        QRimage.scaleAbsoluteHeight(qrSize);
         QRimage.setBorderColor(BaseColor.BLACK);
         canvas.addImage(QRimage);
         canvas.restoreState();
@@ -228,19 +244,25 @@ public class Boleta {
         canvas.setFontAndSize(bf, 8.0F * scaleFont);
         canvas.setTextMatrix(x + 10.0F * scaleX, y + alto - 35.0F * scaleY);
         canvas.showText(msg1);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 45.0F * scaleY);
+        // Bloque de mensajes msg2..msg8. "Adulterada o Cercenada no participa" (msg8)
+        // queda anclado en su posicion (offset 105). En 15B se reduce el interlineado
+        // para juntar las lineas de arriba sin traslaparlas.
+        float interMsg = (tipoReporte == 2) ? 8.0F : 10.0F;
+        float msgX = x + 110.0F * scaleX;
+        float base8 = 105.0F; // offset de msg8 (fijo)
+        canvas.setTextMatrix(msgX, y + alto - (base8 - 6.0F * interMsg) * scaleY);
         canvas.showText(msg2);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 55.0F * scaleY);
+        canvas.setTextMatrix(msgX, y + alto - (base8 - 5.0F * interMsg) * scaleY);
         canvas.showText(msg3);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 65.0F * scaleY);
+        canvas.setTextMatrix(msgX, y + alto - (base8 - 4.0F * interMsg) * scaleY);
         canvas.showText(msg4);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 75.0F * scaleY);
+        canvas.setTextMatrix(msgX, y + alto - (base8 - 3.0F * interMsg) * scaleY);
         canvas.showText(msg5);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 85.0F * scaleY);
+        canvas.setTextMatrix(msgX, y + alto - (base8 - 2.0F * interMsg) * scaleY);
         canvas.showText(msg6);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 95.0F * scaleY);
+        canvas.setTextMatrix(msgX, y + alto - (base8 - 1.0F * interMsg) * scaleY);
         canvas.showText(msg7);
-        canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 105.0F * scaleY);
+        canvas.setTextMatrix(msgX, y + alto - base8 * scaleY);
         canvas.showText(msg8);
 
         // canvas.setTextMatrix(x + 110.0F * scaleX, y + alto - 115.0F * scaleY);
