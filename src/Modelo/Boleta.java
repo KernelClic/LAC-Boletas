@@ -80,7 +80,8 @@ public class Boleta {
             float premioY = y + alto - 110.0F * scaleY;
             float premioW = 99.0F * scaleX;
             float premioH = 80.0F * scaleY;
-            qrSize = Math.min(premioW, premioH);
+            // Reducir un poco el QR para que no se entrelace con los textos
+            qrSize = Math.min(premioW, premioH) * 0.85F;
             qrPosX = premioX + (premioW - qrSize) / 2.0F;
             qrPosY = premioY + (premioH - qrSize) / 2.0F;
         } else if (tipoReporte == 2) {
