@@ -55,20 +55,35 @@ public class Boleta {
         canvas.addImage(img);
         canvas.restoreState();
 
-        // marco interno boleta relleno por Premio imagen
-        canvas.saveState();
-        pre.setAbsolutePosition(x + 10.0F * scaleX, y + alto - 110.0F * scaleY);
-        pre.scaleAbsoluteWidth(99 * scaleX);
-        pre.scaleAbsoluteHeight(80 * scaleY);
-        canvas.addImage(pre);
-        canvas.restoreState();
+        // Reportes 12 (0) y 21 (1): el QR reemplaza la imagen del premio.
+        // Reporte 15 (2): se mantiene la imagen del premio.
+        boolean qrEnPremio = (tipoReporte == 0 || tipoReporte == 1);
+
+        if (!qrEnPremio) {
+            // marco interno boleta relleno por Premio imagen
+            canvas.saveState();
+            pre.setAbsolutePosition(x + 10.0F * scaleX, y + alto - 110.0F * scaleY);
+            pre.scaleAbsoluteWidth(99 * scaleX);
+            pre.scaleAbsoluteHeight(80 * scaleY);
+            canvas.addImage(pre);
+            canvas.restoreState();
+        }
 
         BarcodeQRCode my_code = new BarcodeQRCode(
                 "https://poco.absapex.net/apex/api_boletas/api_boletas/v1/qr/consultar/" + uuidAPI, 1, 1, null);
         Image QRimage = my_code.getImage();
         canvas.saveState();
         float qrSize, qrPosX, qrPosY;
-        if (tipoReporte == 2) {
+        if (qrEnPremio) {
+            // 12 y 21 boletas: QR cuadrado centrado en el espacio que ocupaba el premio
+            float premioX = x + 10.0F * scaleX;
+            float premioY = y + alto - 110.0F * scaleY;
+            float premioW = 99.0F * scaleX;
+            float premioH = 80.0F * scaleY;
+            qrSize = Math.min(premioW, premioH);
+            qrPosX = premioX + (premioW - qrSize) / 2.0F;
+            qrPosY = premioY + (premioH - qrSize) / 2.0F;
+        } else if (tipoReporte == 2) {
             // 15 boletas: QR ampliado y ajustado a los textos que lo limitan
             //   derecha -> borde interno de la boleta (x + ancho - 3)
             //   arriba  -> justo debajo de la fecha
