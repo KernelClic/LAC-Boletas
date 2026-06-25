@@ -44,6 +44,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private JTable tblRangos;
         private DefaultTableModel modeloRangos;
 
+        // ── Redes sociales (reporte vertical tipo 3): textos junto a los logos ──
+        private javax.swing.JTextField txtFacebook;
+        private javax.swing.JTextField txtWhatsapp;
+
         /**
          * Creates new form Generador_Boletas
          */
@@ -261,8 +265,49 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 lblImagen.setIcon(iconEscalada(path, 220, 185));
                 lblImagen1.setIcon(iconEscalada(pathPremio, 225, 185));
 
+                // ── Panel de Redes Sociales (textos de Facebook/WhatsApp) ──
+                inicializarPanelRedes();
+
                 // ── Inicializar panel de Rangos de Premio ──
                 inicializarPanelPlazaSorteo();
+        }
+
+        /**
+         * Crea el panel de Redes Sociales con los campos configurables de
+         * Facebook y WhatsApp, cuyos textos se imprimen junto a los logos en el
+         * reporte vertical (tipo 3).
+         */
+        private void inicializarPanelRedes() {
+                JPanel panelRedes = new JPanel();
+                panelRedes.setBorder(BorderFactory.createTitledBorder(
+                                BorderFactory.createLineBorder(new Color(153, 51, 0), 2),
+                                "Redes Sociales (reporte vertical)",
+                                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+                                javax.swing.border.TitledBorder.DEFAULT_POSITION,
+                                new Font("Cantarell", Font.BOLD, 13),
+                                new Color(153, 51, 0)));
+                panelRedes.setLayout(null);
+
+                JLabel lblFb = new JLabel("Facebook");
+                lblFb.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblFb.setBounds(12, 25, 90, 25);
+                panelRedes.add(lblFb);
+
+                txtFacebook = new javax.swing.JTextField("LA ESTRELLA");
+                txtFacebook.setBounds(105, 25, 320, 25);
+                panelRedes.add(txtFacebook);
+
+                JLabel lblWa = new JLabel("WhatsApp");
+                lblWa.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblWa.setBounds(12, 58, 90, 25);
+                panelRedes.add(lblWa);
+
+                txtWhatsapp = new javax.swing.JTextField("300 000 0000");
+                txtWhatsapp.setBounds(105, 58, 320, 25);
+                panelRedes.add(txtWhatsapp);
+
+                getContentPane().add(panelRedes,
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 460, 455, 100));
         }
 
         /**
@@ -383,6 +428,16 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                 xi = 5;
                                 yi = (int) (792 - 10 - alto); // ≈ 632
                                 break;
+                        case 3: // 6 boletas VERTICALES (10 oportunidades): 3 col x 2 filas, carta VERTICAL
+                                maxCol = 3;
+                                maxFil = 2;
+                                ancho = 196;
+                                alto = 375;
+                                paso_x = 197;
+                                paso_y = 378;
+                                xi = 5;
+                                yi = (int) (792 - 10 - alto); // ≈ 407
+                                break;
                         default: // 0 → 12 boletas: 3 columnas x 4 filas, carta HORIZONTAL
                                 maxCol = MAXCOL; // 3
                                 maxFil = MAXFIL; // 4
@@ -424,6 +479,18 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 Boleta bol = new Boleta();
                 Image img = Image.getInstance(txtImagen.getText());
                 Image pre = Image.getInstance(txtPremio.getText());
+
+                // Logos para el reporte vertical (tipo 3): se buscan junto a la
+                // imagen de fondo (mismo directorio Imagenes). Si fallan, quedan null
+                // y drawRectangleVertical dibuja un placeholder.
+                Image logoFb = null, logoWa = null;
+                if (tipoReporte == 3) {
+                        String imgDir = new java.io.File(txtImagen.getText()).getParent();
+                        try { logoFb = Image.getInstance(imgDir + "/Facebook.png"); }
+                        catch (Exception ex) { System.err.println("[LOGO] Facebook.png no cargó: " + ex.getMessage()); }
+                        try { logoWa = Image.getInstance(imgDir + "/Whatsapp.png"); }
+                        catch (Exception ex) { System.err.println("[LOGO] Whatsapp.png no cargó: " + ex.getMessage()); }
+                }
 
                 try {
                         Document document;
@@ -475,7 +542,25 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                         String premioBoleta = obtenerPremioLocal(boletaConsecutivoFormateada);
                                         String qrPremioContent = premioBoleta;
 
-                                        bol.drawRectangle(canvas,
+                                        if (tipoReporte == 3) {
+                                                bol.drawRectangleVertical(canvas,
+                                                                x, y, ancho, alto,
+                                                                5, 5,
+                                                                txtTitulo.getText(), txtFecha.getText(), txtVlrBoleta.getText(),
+                                                                txtMensaje1.getText(), txtMensaje2.getText(),
+                                                                txtMensaje3.getText(),
+                                                                txtMensaje4.getText(), txtMensaje5.getText(),
+                                                                txtMensaje6.getText(),
+                                                                txtMensaje7.getText(), txtMensaje8.getText(),
+                                                                txtMensaje9.getText(),
+                                                                opor, color,
+                                                                stmpPrint, index,
+                                                                img, pre, qrInfoContent, qrPremioContent,
+                                                                sorteoNombre, boletaConsecutivoFormateada,
+                                                                logoFb, logoWa,
+                                                                txtFacebook.getText(), txtWhatsapp.getText());
+                                        } else {
+                                                bol.drawRectangle(canvas,
                                                         x, y, ancho, alto,
                                                         5, 5,
                                                         txtTitulo.getText(), txtFecha.getText(), txtVlrBoleta.getText(),
@@ -489,6 +574,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                         stmpPrint, index,
                                                         img, pre, qrInfoContent, qrPremioContent,
                                                         sorteoNombre, boletaConsecutivoFormateada);
+                                        }
 
                                         index += opor;
                                         x = x + paso_x;
@@ -1310,7 +1396,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 });
 
                 jComboBoxReporte.setModel(new javax.swing.DefaultComboBoxModel<>(
-                                new String[] { "12 Boletas - Carta H (3x4)", "21 Boletas - Carta V (3x7)", "15 Boletas - Carta V (3x5)" }));
+                                new String[] { "12 Boletas - Carta H (3x4)", "21 Boletas - Carta V (3x7)", "15 Boletas - Carta V (3x5)", "6 Boletas - Vertical 10 Oport. (3x2)" }));
                 jComboBoxReporte.addActionListener(new java.awt.event.ActionListener() {
                         public void actionPerformed(java.awt.event.ActionEvent evt) {
                                 jComboBoxReporteActionPerformed(evt);
