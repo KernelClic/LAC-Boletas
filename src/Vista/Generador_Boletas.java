@@ -48,12 +48,43 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private javax.swing.JTextField txtFacebook;
         private javax.swing.JTextField txtWhatsapp;
 
+        // ── Opciones del reporte vertical (tipo 3) ──
+        private javax.swing.JSlider sliderTransparencia;   // transparencia marca de agua (0=opaca, 100=invisible)
+        private javax.swing.JLabel lblTransparenciaValor;
+        private javax.swing.JComboBox<String> cmbFormatoBoleta; // dígitos de "Boleta No." con ceros a la izquierda
+
+        // ── Control protegido: QR Ganador (premio) ──
+        // Oculto y desmarcado por defecto. Se revela con el gesto secreto
+        // (doble clic + Ctrl+Shift sobre el campo Facebook). Solo si está
+        // visible y marcado, el QR ganador se imprime (ver Boleta.setMostrarQrGanador).
+        private javax.swing.JCheckBox chkQrGanador;
+
+        // Control protegido de cifras de generación (4 ó 5). Oculto por defecto,
+        // se revela con el mismo gesto secreto. Por defecto siempre 4 cifras.
+        private javax.swing.JLabel lblCifras;
+        private javax.swing.JComboBox<String> cmbCifras;
+
         /**
          * Creates new form Generador_Boletas
          */
-        private final int MAXNUMBER = 10000;
+        private int MAXNUMBER = 10000;
         private final int MAXFIL = 4;
         private final int MAXCOL = 3;
+
+        // ── Catálogo de reportes ─────────────────────────────────────────────
+        // El ÍNDICE del arreglo es el ID real del reporte (tipoReporte) usado en
+        // el switch de writePDF. El combo solo muestra los reportes habilitados,
+        // por lo que su índice de selección se traduce a este ID vía reportesVisibles.
+        private static final String[] REPORTES_LABELS = {
+                        "12 Boletas - Carta H (3x4)",
+                        "21 Boletas - Carta V (3x7)",
+                        "15 Boletas - Carta V (3x5)",
+                        "8 Boletas - Vertical 10 Oport. (4x2)"
+        };
+        // Propiedad en config/boletas-sync.properties que persiste la selección.
+        private static final String PROP_REPORTES = "boletas.reportes.habilitados";
+        // IDs de reporte visibles en el combo, en el mismo orden en que aparecen.
+        private java.util.List<Integer> reportesVisibles = new java.util.ArrayList<>();
 
 
         private ImageIcon iconEscalada(String path, int w, int h) {
@@ -73,6 +104,11 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
         public int[] generarNumerosAleatorios(int nroOpor)
                         throws IOException, FileNotFoundException, BadElementException {
+                // Cifras seleccionadas en el control protegido: 4 → 10.000 números
+                // (0000-9999); 5 → 100.000 números (00000-99999). Por defecto 4.
+                int cifras = getCifras();
+                MAXNUMBER = (int) Math.pow(10, cifras); // 10^4 ó 10^5
+
                 int[] tmpNum = new int[MAXNUMBER + 10];
                 int saltoxColumna = (int) Math.ceil(MAXNUMBER / MAXCOL);
                 int saltoxBoleta = (int) Math.ceil(saltoxColumna / nroOpor);
@@ -82,20 +118,20 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 ArrayList<String> stmpNum = new ArrayList<>();
                 int cifra = 0;
 
-                // Generamos los numeros aleatorios y los adicionamos en un ArrayList
-                for (int i = 0; i < MAXNUMBER + 1; i++) {
-                        tmpNum[i] = (int) (Math.random() * MAXNUMBER);
-                        if (i < MAXNUMBER) {
-                                for (int j = 0; j < i; j++) {
-                                        if (tmpNum[i] == tmpNum[j]) {
-                                                i--;
-                                        }
-                                }
-                        }
+                // Permutación aleatoria sin duplicados de 0..MAXNUMBER-1 mediante
+                // barajado Fisher-Yates (O(n), viable también para 100.000 números).
+                for (int i = 0; i < MAXNUMBER; i++) {
+                        tmpNum[i] = i;
+                }
+                for (int i = MAXNUMBER - 1; i > 0; i--) {
+                        int j = (int) (Math.random() * (i + 1));
+                        int t = tmpNum[i];
+                        tmpNum[i] = tmpNum[j];
+                        tmpNum[j] = t;
                 }
 
                 for (int i = 0; i < MAXNUMBER; i++) {
-                        stmpNum.add(formatearNumero(tmpNum[i], 4));
+                        stmpNum.add(formatearNumero(tmpNum[i], cifras));
                 }
 
                 if (this.C101.isSelected() || this.C102.isSelected() || this.C103.isSelected()
@@ -165,7 +201,11 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 }
 
                 ArrayList<String> stmpPrint = seleccionarCifras(stmpNum, num, cifra);
-                int tipoReporte = jComboBoxReporte.getSelectedIndex();
+                // El índice del combo NO es el tipo de reporte: el combo solo muestra
+                // los reportes habilitados. Se traduce a su ID real vía reportesVisibles.
+                int sel = jComboBoxReporte.getSelectedIndex();
+                int tipoReporte = (sel >= 0 && sel < reportesVisibles.size())
+                                ? reportesVisibles.get(sel) : 0;
                 writePDF(nroOpor, stmpPrint, saltoxFila - 1, tipoReporte);
 
                 return tmpNum;
@@ -268,8 +308,262 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 // ── Panel de Redes Sociales (textos de Facebook/WhatsApp) ──
                 inicializarPanelRedes();
 
+                // ── Panel de opciones del reporte vertical (transparencia / formato Boleta No.) ──
+                inicializarPanelReporteVertical();
+
                 // ── Inicializar panel de Rangos de Premio ──
                 inicializarPanelPlazaSorteo();
+
+                // ── Control protegido del QR Ganador (oculto por defecto) ──
+                inicializarControlQrGanador();
+
+                // ── Combo de reportes: solo los habilitados en la configuración ──
+                reconstruirComboReportes(cargarReportesHabilitados());
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Configuración de reportes habilitados (protegida + persistente)
+        // ════════════════════════════════════════════════════════════════════
+
+        /**
+         * Ruta del archivo de configuración, siguiendo la misma cascada que
+         * BoletaCloudSync: -Dboletas.sync.config.path → env BOLETAS_SYNC_CONFIG_PATH
+         * → config/boletas-sync.properties (por defecto).
+         */
+        private String rutaConfig() {
+                String p = System.getProperty("boletas.sync.config.path");
+                if (p == null || p.trim().isEmpty()) p = System.getenv("BOLETAS_SYNC_CONFIG_PATH");
+                if (p == null || p.trim().isEmpty()) p = "config/boletas-sync.properties";
+                return p;
+        }
+
+        /**
+         * Lee del archivo de configuración los IDs de reporte habilitados.
+         * Si la propiedad no existe o es inválida, devuelve todos los reportes.
+         */
+        private java.util.List<Integer> cargarReportesHabilitados() {
+                java.util.List<Integer> ids = new java.util.ArrayList<>();
+                java.util.Properties props = new java.util.Properties();
+                java.io.File f = new java.io.File(rutaConfig());
+                if (f.exists()) {
+                        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                                props.load(in);
+                        } catch (Exception ex) {
+                                System.err.println("[CONFIG] No se pudo leer " + f + ": " + ex.getMessage());
+                        }
+                }
+                String csv = props.getProperty(PROP_REPORTES, "");
+                if (csv != null && !csv.trim().isEmpty()) {
+                        for (String tok : csv.split(",")) {
+                                try {
+                                        int id = Integer.parseInt(tok.trim());
+                                        if (id >= 0 && id < REPORTES_LABELS.length && !ids.contains(id)) ids.add(id);
+                                } catch (NumberFormatException ignore) {
+                                }
+                        }
+                }
+                if (ids.isEmpty()) { // por defecto: todos habilitados
+                        for (int i = 0; i < REPORTES_LABELS.length; i++) ids.add(i);
+                }
+                return ids;
+        }
+
+        /**
+         * Escribe la lista de IDs habilitados en el archivo de configuración,
+         * preservando comentarios y demás propiedades (reemplazo línea a línea).
+         */
+        private boolean guardarReportesHabilitados(java.util.List<Integer> ids) {
+                StringBuilder csv = new StringBuilder();
+                for (int i = 0; i < ids.size(); i++) {
+                        if (i > 0) csv.append(',');
+                        csv.append(ids.get(i));
+                }
+                String linea = PROP_REPORTES + "=" + csv;
+                java.io.File f = new java.io.File(rutaConfig());
+                try {
+                        java.util.List<String> lineas = new java.util.ArrayList<>();
+                        boolean reemplazado = false;
+                        if (f.exists()) {
+                                for (String l : java.nio.file.Files.readAllLines(
+                                                f.toPath(), java.nio.charset.StandardCharsets.UTF_8)) {
+                                        if (l.trim().startsWith(PROP_REPORTES)) {
+                                                lineas.add(linea);
+                                                reemplazado = true;
+                                        } else {
+                                                lineas.add(l);
+                                        }
+                                }
+                        }
+                        if (!reemplazado) {
+                                if (!lineas.isEmpty()) lineas.add("");
+                                lineas.add("# Reportes habilitados en el combo (IDs: 0=12H, 1=21V, 2=15V, 3=8 Vertical)");
+                                lineas.add(linea);
+                        }
+                        java.io.File parent = f.getParentFile();
+                        if (parent != null && !parent.exists()) parent.mkdirs();
+                        java.nio.file.Files.write(f.toPath(), lineas, java.nio.charset.StandardCharsets.UTF_8);
+                        return true;
+                } catch (Exception ex) {
+                        System.err.println("[CONFIG] No se pudo guardar " + f + ": " + ex.getMessage());
+                        return false;
+                }
+        }
+
+        /**
+         * Reconstruye el modelo del combo de reportes a partir de los IDs dados,
+         * preservando el orden del catálogo. Si la lista queda vacía, habilita todos.
+         */
+        private void reconstruirComboReportes(java.util.List<Integer> ids) {
+                if (jComboBoxReporte == null) return;
+                if (ids == null || ids.isEmpty()) {
+                        ids = new java.util.ArrayList<>();
+                        for (int i = 0; i < REPORTES_LABELS.length; i++) ids.add(i);
+                }
+                // Ordenar según el catálogo para un orden estable en el combo.
+                java.util.List<Integer> ordenados = new java.util.ArrayList<>();
+                for (int i = 0; i < REPORTES_LABELS.length; i++) {
+                        if (ids.contains(i)) ordenados.add(i);
+                }
+                reportesVisibles = ordenados;
+                javax.swing.DefaultComboBoxModel<String> modelo = new javax.swing.DefaultComboBoxModel<>();
+                for (int id : reportesVisibles) modelo.addElement(REPORTES_LABELS[id]);
+                jComboBoxReporte.setModel(modelo);
+                if (modelo.getSize() > 0) jComboBoxReporte.setSelectedIndex(0);
+        }
+
+        /**
+         * Diálogo modal protegido para elegir qué reportes aparecen en el combo.
+         * Se abre con el gesto secreto (doble clic + Ctrl+Shift sobre WhatsApp).
+         */
+        private void abrirDialogoConfigReportes() {
+                final javax.swing.JDialog dlg = new javax.swing.JDialog(
+                                this, "Configuración de Reportes (protegido)", true);
+                dlg.setLayout(new java.awt.BorderLayout(8, 8));
+
+                JPanel cont = new JPanel();
+                cont.setLayout(new javax.swing.BoxLayout(cont, javax.swing.BoxLayout.Y_AXIS));
+                cont.setBorder(BorderFactory.createEmptyBorder(12, 16, 8, 16));
+
+                JLabel titulo = new JLabel("Reportes disponibles en el combo:");
+                titulo.setFont(new Font("Cantarell", Font.BOLD, 13));
+                titulo.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+                cont.add(titulo);
+                cont.add(javax.swing.Box.createVerticalStrut(8));
+
+                final javax.swing.JCheckBox[] checks = new javax.swing.JCheckBox[REPORTES_LABELS.length];
+                for (int i = 0; i < REPORTES_LABELS.length; i++) {
+                        checks[i] = new javax.swing.JCheckBox(REPORTES_LABELS[i], reportesVisibles.contains(i));
+                        checks[i].setFont(new Font("Cantarell", Font.PLAIN, 12));
+                        checks[i].setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+                        cont.add(checks[i]);
+                }
+
+                JPanel botones = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 6));
+                javax.swing.JButton btnGuardar = new javax.swing.JButton("Guardar");
+                javax.swing.JButton btnCancelar = new javax.swing.JButton("Cancelar");
+                botones.add(btnCancelar);
+                botones.add(btnGuardar);
+
+                btnGuardar.addActionListener(ev -> {
+                        java.util.List<Integer> ids = new java.util.ArrayList<>();
+                        for (int i = 0; i < checks.length; i++) {
+                                if (checks[i].isSelected()) ids.add(i);
+                        }
+                        if (ids.isEmpty()) {
+                                javax.swing.JOptionPane.showMessageDialog(dlg,
+                                                "Debe habilitar al menos un reporte.",
+                                                "Configuración inválida",
+                                                javax.swing.JOptionPane.WARNING_MESSAGE);
+                                return;
+                        }
+                        if (guardarReportesHabilitados(ids)) {
+                                reconstruirComboReportes(ids);
+                                javax.swing.JOptionPane.showMessageDialog(dlg,
+                                                "Configuración guardada en:\n" + new java.io.File(rutaConfig()).getAbsolutePath(),
+                                                "Guardado", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                                dlg.dispose();
+                        } else {
+                                javax.swing.JOptionPane.showMessageDialog(dlg,
+                                                "No se pudo guardar la configuración. Revise la consola.",
+                                                "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                        }
+                });
+                btnCancelar.addActionListener(ev -> dlg.dispose());
+
+                dlg.add(cont, java.awt.BorderLayout.CENTER);
+                dlg.add(botones, java.awt.BorderLayout.SOUTH);
+                dlg.pack();
+                dlg.setLocationRelativeTo(this);
+                dlg.setVisible(true);
+        }
+
+        /**
+         * Registra el gesto secreto que revela el checkbox del QR Ganador.
+         *
+         * <p>El checkbox vive dentro del panel "Opciones Reporte Vertical"
+         * (ver {@link #inicializarPanelReporteVertical()}) y arranca
+         * <b>invisible</b> y <b>desmarcado</b>: el QR ganador no se imprime.
+         * Para revelarlo hay que hacer <b>doble clic sobre el campo de texto
+         * Facebook manteniendo Ctrl + Shift</b>. Al repetir el gesto, el
+         * checkbox se oculta y se desmarca, re-asegurando el control.</p>
+         */
+        private void inicializarControlQrGanador() {
+                // Gesto secreto: doble clic en el campo Facebook con Ctrl + Shift.
+                // txtFacebook ya existe (inicializarPanelRedes corre antes en el
+                // constructor). Si por algún motivo es null, no se registra.
+                if (txtFacebook != null) {
+                        txtFacebook.addMouseListener(new java.awt.event.MouseAdapter() {
+                                @Override
+                                public void mouseClicked(java.awt.event.MouseEvent e) {
+                                        if (e.getClickCount() == 2
+                                                        && e.isControlDown() && e.isShiftDown()) {
+                                                alternarControlQrGanador();
+                                        }
+                                }
+                        });
+                }
+                // Gesto secreto paralelo: doble clic + Ctrl+Shift sobre el campo
+                // WhatsApp abre el diálogo de configuración de reportes habilitados.
+                if (txtWhatsapp != null) {
+                        txtWhatsapp.addMouseListener(new java.awt.event.MouseAdapter() {
+                                @Override
+                                public void mouseClicked(java.awt.event.MouseEvent e) {
+                                        if (e.getClickCount() == 2
+                                                        && e.isControlDown() && e.isShiftDown()) {
+                                                abrirDialogoConfigReportes();
+                                        }
+                                }
+                        });
+                }
+        }
+
+        /** Alterna la visibilidad de los controles protegidos (QR Ganador y cifras). */
+        private void alternarControlQrGanador() {
+                if (chkQrGanador == null) return;
+                boolean mostrar = !chkQrGanador.isVisible();
+                chkQrGanador.setVisible(mostrar);
+                if (lblCifras != null) lblCifras.setVisible(mostrar);
+                if (cmbCifras != null) cmbCifras.setVisible(mostrar);
+                if (!mostrar) {
+                        // Al ocultar, se re-asegura: QR desmarcado y cifras vuelve a 4.
+                        chkQrGanador.setSelected(false);
+                        if (cmbCifras != null) cmbCifras.setSelectedIndex(0);
+                }
+                chkQrGanador.getParent().revalidate();
+                chkQrGanador.getParent().repaint();
+        }
+
+        /**
+         * Cifras de generación de los números de oportunidad (4 ó 5).
+         * Por seguridad, solo es 5 si el control protegido está revelado
+         * (visible) y seleccionado en "5 cifras"; en cualquier otro caso, 4.
+         */
+        private int getCifras() {
+                if (cmbCifras != null && cmbCifras.isVisible()
+                                && cmbCifras.getSelectedIndex() == 1) {
+                        return 5;
+                }
+                return 4;
         }
 
         /**
@@ -294,20 +588,103 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 panelRedes.add(lblFb);
 
                 txtFacebook = new javax.swing.JTextField("LA ESTRELLA");
-                txtFacebook.setBounds(105, 25, 320, 25);
+                txtFacebook.setBounds(105, 25, 470, 25);
                 panelRedes.add(txtFacebook);
 
                 JLabel lblWa = new JLabel("WhatsApp");
                 lblWa.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblWa.setBounds(12, 58, 90, 25);
+                lblWa.setBounds(12, 55, 90, 25);
                 panelRedes.add(lblWa);
 
                 txtWhatsapp = new javax.swing.JTextField("300 000 0000");
-                txtWhatsapp.setBounds(105, 58, 320, 25);
+                txtWhatsapp.setBounds(105, 55, 470, 25);
                 panelRedes.add(txtWhatsapp);
 
                 getContentPane().add(panelRedes,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 460, 455, 100));
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(478, 560, 595, 90));
+        }
+
+        /**
+         * Panel con opciones específicas del reporte vertical (tipo 3):
+         *  - Transparencia de la marca de agua (imagen de fondo).
+         *  - Formato del número "Boleta No." (ceros a la izquierda: XXXX / XXXXX).
+         */
+        private void inicializarPanelReporteVertical() {
+                JPanel panel = new JPanel();
+                panel.setBorder(BorderFactory.createTitledBorder(
+                                BorderFactory.createLineBorder(new Color(153, 51, 0), 2),
+                                "Opciones Reporte Vertical",
+                                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
+                                javax.swing.border.TitledBorder.DEFAULT_POSITION,
+                                new Font("Cantarell", Font.BOLD, 13),
+                                new Color(153, 51, 0)));
+                panel.setLayout(null);
+
+                JLabel lblTransp = new JLabel("Transparencia marca de agua");
+                lblTransp.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblTransp.setBounds(12, 25, 210, 25);
+                panel.add(lblTransp);
+
+                sliderTransparencia = new javax.swing.JSlider(0, 100, 0); // 0 = opaca
+                sliderTransparencia.setBounds(225, 25, 150, 25);
+                panel.add(sliderTransparencia);
+
+                lblTransparenciaValor = new JLabel("0%");
+                lblTransparenciaValor.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblTransparenciaValor.setBounds(382, 25, 50, 25);
+                panel.add(lblTransparenciaValor);
+
+                sliderTransparencia.addChangeListener(e ->
+                                lblTransparenciaValor.setText(sliderTransparencia.getValue() + "%"));
+
+                JLabel lblFmt = new JLabel("Formato Boleta No.");
+                lblFmt.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblFmt.setBounds(12, 58, 210, 25);
+                panel.add(lblFmt);
+
+                cmbFormatoBoleta = new javax.swing.JComboBox<>(new String[] {
+                                "XXXX (4 dígitos)", "XXXXX (5 dígitos)", "XXXXXX (6 dígitos)" });
+                cmbFormatoBoleta.setBounds(225, 58, 150, 25);
+                panel.add(cmbFormatoBoleta);
+
+                // ── Controles protegidos (ocultos por defecto) ──
+                // Viven aquí, dentro de un panel visible. Se revelan con el gesto
+                // secreto (doble clic + Ctrl+Shift sobre el campo Facebook).
+                chkQrGanador = new javax.swing.JCheckBox("Incluir QR Ganador");
+                chkQrGanador.setFont(new Font("Cantarell", Font.BOLD, 12));
+                chkQrGanador.setForeground(new Color(153, 0, 0));
+                chkQrGanador.setSelected(false);
+                chkQrGanador.setVisible(false);
+                chkQrGanador.setBounds(440, 20, 155, 22);
+                panel.add(chkQrGanador);
+
+                lblCifras = new JLabel("Generar:");
+                lblCifras.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblCifras.setForeground(new Color(153, 0, 0));
+                lblCifras.setVisible(false);
+                lblCifras.setBounds(440, 48, 55, 24);
+                panel.add(lblCifras);
+
+                cmbCifras = new javax.swing.JComboBox<>(new String[] { "4 cifras", "5 cifras" });
+                cmbCifras.setSelectedIndex(0); // por defecto siempre 4 cifras
+                cmbCifras.setVisible(false);
+                cmbCifras.setBounds(498, 48, 97, 24);
+                panel.add(cmbCifras);
+
+                getContentPane().add(panel,
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(478, 460, 595, 95));
+        }
+
+        /** Cantidad de dígitos seleccionada para "Boleta No." (4, 5 ó 6). */
+        private int getDigitosBoleta() {
+                int idx = (cmbFormatoBoleta != null) ? cmbFormatoBoleta.getSelectedIndex() : 0;
+                return 4 + Math.max(0, idx); // 0→4, 1→5, 2→6
+        }
+
+        /** Opacidad de la marca de agua en [0,1] a partir del slider de transparencia. */
+        private float getOpacidadMarcaAgua() {
+                int transp = (sliderTransparencia != null) ? sliderTransparencia.getValue() : 0;
+                return 1.0f - (transp / 100.0f);
         }
 
         /**
@@ -335,12 +712,12 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 tblRangos.getColumnModel().getColumn(1).setPreferredWidth(70);
                 tblRangos.getColumnModel().getColumn(2).setPreferredWidth(350);
                 JScrollPane scrollRangos = new JScrollPane(tblRangos);
-                scrollRangos.setBounds(10, 20, 460, 105);
+                scrollRangos.setBounds(10, 20, 505, 95);
                 panelRangos.add(scrollRangos);
 
                 JButton btnAgregarRango = new JButton("+");
                 btnAgregarRango.setFont(new Font("Cantarell", Font.BOLD, 12));
-                btnAgregarRango.setBounds(480, 20, 50, 25);
+                btnAgregarRango.setBounds(525, 20, 50, 25);
                 btnAgregarRango.addActionListener(e -> {
                         modeloRangos.addRow(new Object[] { "0", "0", "" });
                 });
@@ -348,7 +725,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
                 JButton btnEliminarRango = new JButton("-");
                 btnEliminarRango.setFont(new Font("Cantarell", Font.BOLD, 12));
-                btnEliminarRango.setBounds(480, 50, 50, 25);
+                btnEliminarRango.setBounds(525, 50, 50, 25);
                 btnEliminarRango.addActionListener(e -> {
                         int fila = tblRangos.getSelectedRow();
                         if (fila >= 0) {
@@ -358,9 +735,9 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 panelRangos.add(btnEliminarRango);
 
                 getContentPane().add(panelRangos,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(475, 460, 600, 135));
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(478, 655, 595, 125));
 
-                this.setPreferredSize(new Dimension(1080, 700));
+                this.setPreferredSize(new Dimension(1090, 815));
                 this.pack();
         }
 
@@ -428,12 +805,12 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                 xi = 5;
                                 yi = (int) (792 - 10 - alto); // ≈ 632
                                 break;
-                        case 3: // 6 boletas VERTICALES (10 oportunidades): 3 col x 2 filas, carta VERTICAL
-                                maxCol = 3;
+                        case 3: // 8 boletas VERTICALES (10 oportunidades): 4 col x 2 filas, carta VERTICAL
+                                maxCol = 4;
                                 maxFil = 2;
-                                ancho = 196;
+                                ancho = 148;
                                 alto = 375;
-                                paso_x = 197;
+                                paso_x = 150;
                                 paso_y = 378;
                                 xi = 5;
                                 yi = (int) (792 - 10 - alto); // ≈ 407
@@ -477,6 +854,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 }
 
                 Boleta bol = new Boleta();
+                // QR Ganador (premio): solo se imprime si el control protegido
+                // está revelado (visible) y marcado. Por defecto: deshabilitado.
+                bol.setMostrarQrGanador(chkQrGanador != null
+                                && chkQrGanador.isVisible() && chkQrGanador.isSelected());
                 Image img = Image.getInstance(txtImagen.getText());
                 Image pre = Image.getInstance(txtPremio.getText());
 
@@ -533,7 +914,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                         String numerosConcatenados = sbNumeros.toString();
 
                                         totalBoletas++;
-                                        String boletaConsecutivoFormateada = String.format("%04d", totalBoletas);
+                                        String boletaConsecutivoFormateada =
+                                                        String.format("%0" + getDigitosBoleta() + "d", totalBoletas);
 
                                         // QR Derecha: solo los números de oportunidades en cadena
                                         String qrInfoContent = numerosConcatenados;
@@ -558,7 +940,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                                                 img, pre, qrInfoContent, qrPremioContent,
                                                                 sorteoNombre, boletaConsecutivoFormateada,
                                                                 logoFb, logoWa,
-                                                                txtFacebook.getText(), txtWhatsapp.getText());
+                                                                txtFacebook.getText(), txtWhatsapp.getText(),
+                                                                getOpacidadMarcaAgua());
                                         } else {
                                                 bol.drawRectangle(canvas,
                                                         x, y, ancho, alto,
@@ -1396,7 +1779,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 });
 
                 jComboBoxReporte.setModel(new javax.swing.DefaultComboBoxModel<>(
-                                new String[] { "12 Boletas - Carta H (3x4)", "21 Boletas - Carta V (3x7)", "15 Boletas - Carta V (3x5)", "6 Boletas - Vertical 10 Oport. (3x2)" }));
+                                new String[] { "12 Boletas - Carta H (3x4)", "21 Boletas - Carta V (3x7)", "15 Boletas - Carta V (3x5)", "8 Boletas - Vertical 10 Oport. (4x2)" }));
                 jComboBoxReporte.addActionListener(new java.awt.event.ActionListener() {
                         public void actionPerformed(java.awt.event.ActionEvent evt) {
                                 jComboBoxReporteActionPerformed(evt);

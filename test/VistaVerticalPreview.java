@@ -24,7 +24,7 @@ public class VistaVerticalPreview {
 
         // 60 números de prueba
         ArrayList<String> stmp = new ArrayList<>();
-        for (int i = 0; i < 60; i++) stmp.add(String.format("%05d", 10000 + i));
+        for (int i = 0; i < 80; i++) stmp.add(String.format("%05d", 10000 + i));
 
         String m1 = "El aporte lo hace participe del sorteo";
         String m2 = "Responsable: Loteria La Estrella";
@@ -36,8 +36,8 @@ public class VistaVerticalPreview {
         String m8 = "Consulte resultados en linea";
         String m9 = "Gracias por participar";
 
-        int maxCol = 3, maxFil = 2;
-        float ancho = 196, alto = 375, paso_x = 197, paso_y = 378;
+        int maxCol = 4, maxFil = 2;
+        float ancho = 148, alto = 375, paso_x = 150, paso_y = 378;
         float xi = 5, yi = 792 - 10 - alto;
         int idx = 0;
         for (int f = 0; f < maxFil; f++) {
@@ -50,7 +50,7 @@ public class VistaVerticalPreview {
                         10, 1, stmp, idx,
                         img, pre, "QR-INFO-" + idx, "QR-PREMIO-" + idx,
                         "SORT01", String.format("%06d", 1000 + idx),
-                        null, null, "LA ESTRELLA", "300 000 0000");
+                        null, null, "LA ESTRELLA", "300 000 0000", 0.35f);
                 idx += 10;
             }
         }

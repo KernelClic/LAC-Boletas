@@ -15,6 +15,7 @@ import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.PdfContentByte;
+import com.itextpdf.text.pdf.PdfGState;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,6 +26,25 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 
 public class Boleta {
+
+    /**
+     * Controla si el QR GANADOR (el del mensaje de premio) se dibuja en el
+     * reporte. Por seguridad arranca en {@code false}: el QR ganador NO se
+     * imprime salvo que la vista lo habilite explícitamente vía
+     * {@link #setMostrarQrGanador(boolean)} tras revelar el control oculto.
+     * El QR de seguridad (números) siempre se imprime.
+     */
+    private boolean mostrarQrGanador = false;
+
+    /** Habilita o deshabilita la impresión del QR ganador (premio). */
+    public void setMostrarQrGanador(boolean mostrar) {
+        this.mostrarQrGanador = mostrar;
+    }
+
+    /** @return true si el QR ganador se imprimirá en el reporte. */
+    public boolean isMostrarQrGanador() {
+        return mostrarQrGanador;
+    }
 
     public ArrayList<String> drawRectangle(PdfContentByte canvas,
             float x, float y, float ancho, float alto,
@@ -480,23 +500,25 @@ public class Boleta {
         float qrY     = y + alto - 78.5f * scaleY - qrSize / 2.0f;
         float qrBgPad = 2 * scaleFont;              // padding del fondo blanco
 
-        // QR Premio (IZQUIERDA) con fondo blanco — centrado en zona izquierda (margen 8pt)
+        // QR Premio / GANADOR (IZQUIERDA) — solo se dibuja si está habilitado
         float qrPremioX = x + 8 * scaleX;
-        try {
-            canvas.saveState();
-            canvas.setColorFill(BaseColor.WHITE);
-            canvas.rectangle(qrPremioX - qrBgPad, qrY - qrBgPad,
-                             qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
-            canvas.fill();
-            canvas.restoreState();
+        if (mostrarQrGanador) {
+            try {
+                canvas.saveState();
+                canvas.setColorFill(BaseColor.WHITE);
+                canvas.rectangle(qrPremioX - qrBgPad, qrY - qrBgPad,
+                                 qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+                canvas.fill();
+                canvas.restoreState();
 
-            Image qrPremioImg = generarQRImage(qrPremioContent, qrSize);
-            qrPremioImg.setAbsolutePosition(qrPremioX, qrY);
-            canvas.saveState();
-            canvas.addImage(qrPremioImg);
-            canvas.restoreState();
-        } catch (Exception e) {
-            System.err.println("[QR] Error QR Premio: " + e.getMessage());
+                Image qrPremioImg = generarQRImage(qrPremioContent, qrSize);
+                qrPremioImg.setAbsolutePosition(qrPremioX, qrY);
+                canvas.saveState();
+                canvas.addImage(qrPremioImg);
+                canvas.restoreState();
+            } catch (Exception e) {
+                System.err.println("[QR] Error QR Premio: " + e.getMessage());
+            }
         }
 
         // QR Info (DERECHA) con fondo blanco — centrado en zona derecha (margen 8pt)
@@ -568,15 +590,16 @@ public class Boleta {
             int colortexto,
             ArrayList<String> stmpPrint, int idx,
             Image img, Image pre, String qrInfoContent, String qrPremioContent, String codSorteo, String numeroBoleta,
-            Image logoFb, Image logoWa, String textoFb, String textoWa)
+            Image logoFb, Image logoWa, String textoFb, String textoWa, float wmOpacity)
             throws DocumentException, IOException {
 
         ArrayList<String> impresos = new ArrayList<>();
 
-        // Referencia de diseño: 196 (ancho) x 375 (alto)
-        float sX = ancho / 196.0f;
+        // Referencia de diseño: 148 (ancho) x 375 (alto) — 4 boletas por fila
+        float sX = ancho / 148.0f;
         float sY = alto / 375.0f;
         float sF = Math.min(sX, sY);
+        float cx = x + ancho / 2.0f;          // centro horizontal de la boleta
 
         BaseFont bf = BaseFont.createFont();
 
@@ -588,8 +611,16 @@ public class Boleta {
         canvas.fillStroke();
         canvas.restoreState();
 
-        // ── Imagen de fondo dentro del marco interno ─────────────────────────
+        // ── Imagen de fondo (marca de agua) dentro del marco interno ─────────
         canvas.saveState();
+        // Transparencia configurable: wmOpacity en [0,1] (1 = opaca, 0 = invisible)
+        float op = Math.max(0.0f, Math.min(1.0f, wmOpacity));
+        if (op < 1.0f) {
+            PdfGState gs = new PdfGState();
+            gs.setFillOpacity(op);
+            gs.setStrokeOpacity(op);
+            canvas.setGState(gs);
+        }
         img.setAbsolutePosition(x + 3.0F, y + 3.5F);
         img.scaleAbsoluteWidth(ancho - 6.0F);
         img.scaleAbsoluteHeight(alto - 7.5F);
@@ -599,64 +630,78 @@ public class Boleta {
         canvas.restoreState();
 
         // ── Imagen de premio (esquina superior derecha, pequeña) ─────────────
+        float preW = 30.0f * sX, preH = 32.0f * sY;
         canvas.saveState();
-        pre.setAbsolutePosition(x + ancho - 50.0F * sX, y + alto - 56.0F * sY);
-        pre.scaleAbsoluteWidth(40 * sX);
-        pre.scaleAbsoluteHeight(44 * sY);
+        pre.setAbsolutePosition(x + ancho - preW - 5.0f * sX, y + alto - preH - 5.0f * sY);
+        pre.scaleAbsoluteWidth(preW);
+        pre.scaleAbsoluteHeight(preH);
         canvas.addImage(pre);
         canvas.restoreState();
 
-        // ── Encabezado: título, fecha de sorteo, valor ───────────────────────
+        // ── Encabezado CENTRADO: título, sorteo, valor ───────────────────────
+        float tituloFont = 11.0F * sF;
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
         canvas.setLineWidth(0.7F);
         canvas.setRGBColorStroke(0, 0, 0);
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 12.0F * sF);
-        canvas.setTextMatrix(x + 10.0F * sX, y + alto - 20.0F * sY);
+        canvas.setFontAndSize(bf, tituloFont);
+        canvas.setTextMatrix(cx - bf.getWidthPoint(titulo, tituloFont) / 2.0f, y + alto - 17.0F * sY);
         canvas.showText(titulo);
 
+        float sortFont = 9.0F * sF;
         canvas.setRGBColorStroke(255, 0, 0);
         canvas.setRGBColorFill(255, 0, 0);
-        canvas.setFontAndSize(bf, 9.5F * sF);
-        canvas.setTextMatrix(x + 10.0F * sX, y + alto - 33.0F * sY);
-        canvas.showText("Sorteo: " + fecha);
+        canvas.setFontAndSize(bf, sortFont);
+        String sortTxt = "Sorteo: " + fecha;
+        canvas.setTextMatrix(cx - bf.getWidthPoint(sortTxt, sortFont) / 2.0f, y + alto - 30.0F * sY);
+        canvas.showText(sortTxt);
 
+        float valFont = 8.5F * sF;
         canvas.setRGBColorStroke(0, 0, 0);
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 9.0F * sF);
-        canvas.setTextMatrix(x + 10.0F * sX, y + alto - 45.0F * sY);
-        canvas.showText("Valor: " + valor);
+        canvas.setFontAndSize(bf, valFont);
+        String valTxt = "Valor: " + valor;
+        canvas.setTextMatrix(cx - bf.getWidthPoint(valTxt, valFont) / 2.0f, y + alto - 41.0F * sY);
+        canvas.showText(valTxt);
         canvas.endText();
         canvas.restoreState();
 
-        // ── 10 oportunidades apiladas: solo el número, dentro de su marco ────
-        // Mismo tratamiento que los otros reportes: número en ROJO, resaltado
-        // (modo 2). Sin etiqueta "Oportunidad N"; cada número va en su recuadro.
-        int n = Math.min(oportun, 10);
-        float opTop  = 56.0f;    // tope del 1er recuadro (desde el borde superior)
-        float boxH   = 10.5f;    // alto de cada recuadro
-        float opStep = 12.4f;    // separación vertical entre recuadros
-        float boxLeft = x + 10.0f * sX;
-        float boxW    = 74.0f * sX;
-        float numFont = 10.5f * sF;
-        for (int k = 0; k < n; k++) {
-            float boxY = y + alto - (opTop + k * opStep + boxH) * sY;   // esquina inferior del marco
-            String numero = (idx + k < stmpPrint.size()) ? stmpPrint.get(idx + k) : "####";
+        // ── Zonas verticales ─────────────────────────────────────────────────
+        float footerH   = 14.0f * sY;                 // pie (Boleta No.)
+        float msgBlockH = 104.0f * sY;                // bloque inferior (FB/WA + textos)
+        float headerH   = 50.0f * sY;                 // encabezado
+        float bodyTop    = y + alto - headerH;        // tope del cuerpo
+        float bodyBottom = y + footerH + msgBlockH;   // base del cuerpo
+        float bodyH      = bodyTop - bodyBottom;
 
-            // Marco de la oportunidad
+        float margin    = 8.0f * sX;
+        float leftColW  = 52.0f * sX;                  // columna de números
+        float colGapXX  = 4.0f * sX;
+        float leftColX  = x + margin;
+        float rightColX = leftColX + leftColW + colGapXX;
+        float rightColW = (x + ancho - margin) - rightColX;   // columna de QRs
+
+        // ── 10 oportunidades (izquierda): números grandes, bien distribuidos ──
+        int n = Math.min(oportun, 10);
+        float slotH  = bodyH / n;
+        float numFont = Math.min(13.0f * sF, slotH * 0.60f);
+        for (int k = 0; k < n; k++) {
+            String numero = (idx + k < stmpPrint.size()) ? stmpPrint.get(idx + k) : "####";
+            float slotCenterY = bodyTop - (k + 0.5f) * slotH;
+
+            // Recuadro tenue
+            float boxH = slotH * 0.80f;
             canvas.saveState();
             canvas.setLineWidth(0.5F);
             canvas.setRGBColorStroke(120, 120, 120);
-            canvas.rectangle(boxLeft, boxY, boxW, boxH * sY);
+            canvas.rectangle(leftColX, slotCenterY - boxH / 2.0f, leftColW, boxH);
             canvas.stroke();
             canvas.restoreState();
 
-            // Número centrado en el marco (rojo, resaltado) — fuente como otros reportes
+            // Número centrado en el recuadro (rojo, resaltado)
             float tw = bf.getWidthPoint(numero, numFont);
-            float tx = boxLeft + (boxW - tw) / 2.0f;
-            float tyb = boxY + (boxH * sY - numFont) / 2.0f + numFont * 0.18f;
             canvas.saveState();
             canvas.beginText();
             canvas.setTextRenderingMode(2);
@@ -664,7 +709,7 @@ public class Boleta {
             canvas.setRGBColorStroke(255, 0, 0);
             canvas.setRGBColorFill(255, 0, 0);
             canvas.setFontAndSize(bf, numFont);
-            canvas.setTextMatrix(tx, tyb);
+            canvas.setTextMatrix(leftColX + (leftColW - tw) / 2.0f, slotCenterY - numFont * 0.34f);
             canvas.showText(numero);
             canvas.endText();
             canvas.restoreState();
@@ -672,93 +717,48 @@ public class Boleta {
             impresos.add(numero);
         }
 
-        // ── Mensajes configurados como columnas verticales (rotadas 90°),
-        //    distribuidas en el espacio libre a la derecha sin traslaparse ──
-        java.util.List<String> msgs = new java.util.ArrayList<>();
-        for (String m : new String[] { msg1, msg2, msg3, msg4, msg5, msg6, msg7, msg8, msg9 }) {
-            if (m != null && !m.trim().isEmpty()) msgs.add(m.trim());
-        }
-        if (!msgs.isEmpty()) {
-            float bandRight = x + ancho - 7.0f * sX;    // borde derecho del área de columnas
-            float bandLeft  = x + 90.0f * sX;            // a la derecha de los recuadros
-            float bandW     = bandRight - bandLeft;
-            float colYbot   = y + alto - 178.0f * sY;    // base (abajo) de las columnas
-            float colYtop   = y + alto - 58.0f * sY;     // tope (arriba, bajo la imagen de premio)
-            float colH      = colYtop - colYbot;         // alto disponible para cada columna
-            float colGap    = bandW / msgs.size();       // separación horizontal entre columnas
-
-            // Fuente: que las columnas no se traslapen y que el texto quepa en el alto.
-            float msgFont = Math.min(6.0f * sF, colGap * 0.75f);
-            float maxTextW = 0f;
-            for (String m : msgs) maxTextW = Math.max(maxTextW, bf.getWidthPoint(m, msgFont));
-            if (maxTextW > colH && maxTextW > 0) msgFont *= (colH / maxTextW);
-
-            canvas.saveState();
-            canvas.beginText();
-            canvas.setTextRenderingMode(2);
-            canvas.setLineWidth(0.25F);
-            canvas.setRGBColorStroke(60, 60, 60);
-            canvas.setRGBColorFill(60, 60, 60);
-            canvas.setFontAndSize(bf, msgFont);
-            // matriz de rotación 90° CCW: cada columna lee de abajo hacia arriba.
-            // px = borde derecho de la columna; el cuerpo del texto crece hacia la izquierda.
-            for (int i = 0; i < msgs.size(); i++) {
-                float px = bandRight - (i + 0.5f) * colGap;
-                canvas.setTextMatrix(0, 1, -1, 0, px, colYbot);
-                canvas.showText(msgs.get(i));
-            }
-            canvas.endText();
-            canvas.restoreState();
-        }
-
-        // ── Dos QR: GANADOR (premio, izq) y SEGURIDAD (números, der) ─────────
-        float qrSize = 50.0f * sF;
+        // ── Dos QR apilados (derecha): premio arriba, seguridad abajo ────────
+        // Sin etiquetas: los QR llenan la columna, limitados por el ancho de
+        // columna y por la mitad del alto disponible (menos la separación).
+        float qrGapV      = 8.0f * sY;                 // separación entre los dos QR
+        float qrSize = Math.min(rightColW, (bodyH - qrGapV) / 2.0f);
         float qrBgPad = 2.0f * sF;
-        float qrTopY = y + alto - 190.0f * sY;          // borde superior del QR
-        float qrY = qrTopY - qrSize;                     // esquina inferior izq
-        float qrGanX = x + 14.0f * sX;
-        float qrSegX = x + ancho - 14.0f * sX - qrSize;
+        float qrX = rightColX + (rightColW - qrSize) / 2.0f;
 
-        // Etiquetas
-        canvas.saveState();
-        canvas.beginText();
-        canvas.setTextRenderingMode(2);
-        canvas.setLineWidth(0.5F);
-        canvas.setRGBColorStroke(0, 0, 0);
-        canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 6.5F * sF);
-        canvas.setTextMatrix(qrGanX, qrTopY + 3.0f * sY);
-        canvas.showText("QR GANADOR");
-        canvas.setTextMatrix(qrSegX, qrTopY + 3.0f * sY);
-        canvas.showText("QR SEGURIDAD");
-        canvas.endText();
-        canvas.restoreState();
+        // Bloque de QRs centrado verticalmente dentro del cuerpo
+        float qrBlockH = 2.0f * qrSize + qrGapV;
+        float qrBlockTop = bodyTop - (bodyH - qrBlockH) / 2.0f;
 
-        // QR GANADOR = premio
-        try {
-            canvas.saveState();
-            canvas.setColorFill(BaseColor.WHITE);
-            canvas.rectangle(qrGanX - qrBgPad, qrY - qrBgPad, qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
-            canvas.fill();
-            canvas.restoreState();
-            Image qrGan = generarQRImage(qrPremioContent, qrSize);
-            qrGan.setAbsolutePosition(qrGanX, qrY);
-            canvas.saveState();
-            canvas.addImage(qrGan);
-            canvas.restoreState();
-        } catch (Exception e) {
-            System.err.println("[QR] Error QR Ganador: " + e.getMessage());
+        float ganQrY    = qrBlockTop - qrSize;
+        float segQrY    = ganQrY - qrGapV - qrSize;
+
+        // QR GANADOR = premio — solo se dibuja si está habilitado
+        if (mostrarQrGanador) {
+            try {
+                canvas.saveState();
+                canvas.setColorFill(BaseColor.WHITE);
+                canvas.rectangle(qrX - qrBgPad, ganQrY - qrBgPad, qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+                canvas.fill();
+                canvas.restoreState();
+                Image qrGan = generarQRImage(qrPremioContent, qrSize);
+                qrGan.setAbsolutePosition(qrX, ganQrY);
+                canvas.saveState();
+                canvas.addImage(qrGan);
+                canvas.restoreState();
+            } catch (Exception e) {
+                System.err.println("[QR] Error QR Ganador: " + e.getMessage());
+            }
         }
 
         // QR SEGURIDAD = números de oportunidades
         try {
             canvas.saveState();
             canvas.setColorFill(BaseColor.WHITE);
-            canvas.rectangle(qrSegX - qrBgPad, qrY - qrBgPad, qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+            canvas.rectangle(qrX - qrBgPad, segQrY - qrBgPad, qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
             canvas.fill();
             canvas.restoreState();
             Image qrSeg = generarQRImage(qrInfoContent, qrSize);
-            qrSeg.setAbsolutePosition(qrSegX, qrY);
+            qrSeg.setAbsolutePosition(qrX, segQrY);
             canvas.saveState();
             canvas.addImage(qrSeg);
             canvas.restoreState();
@@ -766,42 +766,104 @@ public class Boleta {
             System.err.println("[QR] Error QR Seguridad: " + e.getMessage());
         }
 
-        // ── Logos Facebook / WhatsApp en dos renglones (logo + texto) ────────
-        float logoSize = 16.0f * sF;
-        float fbRowY = qrY - 14.0f * sY - logoSize;      // 1er renglón: Facebook
-        float waRowY = fbRowY - 20.0f * sY;              // 2º renglón: WhatsApp
-        float logoX = x + 14.0f * sX;
-        float txtX = logoX + logoSize + 5.0f * sX;
+        // ── Bloque inferior CENTRADO: primero Facebook/WhatsApp, luego textos ─
+        float blockTop    = bodyBottom;                 // = y + footerH + msgBlockH
+        float blockBottom = y + footerH;
+        float logoSize    = 13.0f * sF;
+        float redesFont   = 7.5f * sF;
+        float rowH        = Math.max(logoSize, redesFont) + 3.0f * sY;
+        String tFb = (textoFb != null && !textoFb.trim().isEmpty()) ? textoFb : "Facebook";
+        String tWa = (textoWa != null && !textoWa.trim().isEmpty()) ? textoWa : "WhatsApp";
 
-        // Logos (imagen real o recuadro placeholder)
-        drawLogo(canvas, logoFb, logoX, fbRowY, logoSize, "f");
-        drawLogo(canvas, logoWa, logoX, waRowY, logoSize, "w");
+        // Renglón Facebook (logo + texto) centrado como grupo
+        float fbRowTop = blockTop - 2.0f * sY;
+        float fbRowY   = fbRowTop - logoSize;
+        float fbGroupW = logoSize + 4.0f * sX + bf.getWidthPoint(tFb, redesFont);
+        float fbGx     = cx - fbGroupW / 2.0f;
+        drawLogo(canvas, logoFb, fbGx, fbRowY, logoSize, "f");
 
-        // Textos al lado de cada logo
+        // Renglón WhatsApp (logo + texto) centrado como grupo
+        float waRowTop = fbRowTop - rowH;
+        float waRowY   = waRowTop - logoSize;
+        float waGroupW = logoSize + 4.0f * sX + bf.getWidthPoint(tWa, redesFont);
+        float waGx     = cx - waGroupW / 2.0f;
+        drawLogo(canvas, logoWa, waGx, waRowY, logoSize, "w");
+
+        // Textos de redes al lado de cada logo
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
         canvas.setLineWidth(0.4F);
         canvas.setRGBColorStroke(0, 0, 0);
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 7.0F * sF);
-        canvas.setTextMatrix(txtX, fbRowY + logoSize / 2.0f - 3.0f * sY);
-        canvas.showText((textoFb != null && !textoFb.trim().isEmpty()) ? textoFb : "Facebook");
-        canvas.setTextMatrix(txtX, waRowY + logoSize / 2.0f - 3.0f * sY);
-        canvas.showText((textoWa != null && !textoWa.trim().isEmpty()) ? textoWa : "WhatsApp");
+        canvas.setFontAndSize(bf, redesFont);
+        canvas.setTextMatrix(fbGx + logoSize + 4.0f * sX, fbRowY + (logoSize - redesFont) / 2.0f + redesFont * 0.18f);
+        canvas.showText(tFb);
+        canvas.setTextMatrix(waGx + logoSize + 4.0f * sX, waRowY + (logoSize - redesFont) / 2.0f + redesFont * 0.18f);
+        canvas.showText(tWa);
         canvas.endText();
         canvas.restoreState();
 
-        // ── Número de la boleta (pie) ────────────────────────────────────────
+        // Mensajes configurados en orientación NORMAL, centrados, bajo las redes
+        java.util.List<String> msgs = new java.util.ArrayList<>();
+        for (String m : new String[] { msg1, msg2, msg3, msg4, msg5, msg6, msg7, msg8, msg9 }) {
+            if (m != null && !m.trim().isEmpty()) msgs.add(m.trim());
+        }
+        if (!msgs.isEmpty()) {
+            float msgsTop    = waRowY - 2.0f * sY;
+            float msgsBottom = blockBottom + 1.0f * sY;
+            float msgsAreaH  = msgsTop - msgsBottom;
+            float maxW       = ancho - 2.0f * margin;
+            float lineStep   = msgsAreaH / msgs.size();
+            float msgFont    = Math.min(6.0f * sF, lineStep * 0.82f);
+            float widest = 0f;
+            for (String m : msgs) widest = Math.max(widest, bf.getWidthPoint(m, msgFont));
+            if (widest > maxW && widest > 0) msgFont *= (maxW / widest);
+
+            canvas.saveState();
+            canvas.beginText();
+            canvas.setTextRenderingMode(2);
+            canvas.setLineWidth(0.25F);
+            canvas.setRGBColorStroke(40, 40, 40);
+            canvas.setRGBColorFill(40, 40, 40);
+            canvas.setFontAndSize(bf, msgFont);
+            for (int i = 0; i < msgs.size(); i++) {
+                String m = msgs.get(i);
+                float ty = msgsTop - (i + 0.75f) * lineStep;
+                canvas.setTextMatrix(cx - bf.getWidthPoint(m, msgFont) / 2.0f, ty);
+                canvas.showText(m);
+            }
+            canvas.endText();
+            canvas.restoreState();
+        }
+
+        // ── Número de la boleta (pie, centrado, sobre recuadro gris) ──────────
+        float footFont = 8.0F * sF;
+        String foot = "Boleta No. " + numeroBoleta;
+        float footW   = bf.getWidthPoint(foot, footFont);
+        float footTextY = y + 5.0f * sY;               // baseline del texto
+        float footPadX = 6.0f * sX;                    // margen horizontal del recuadro
+        float footPadY = 3.0f * sY;                    // margen vertical del recuadro
+        float footBoxX = cx - footW / 2.0f - footPadX;
+        float footBoxY = footTextY - footPadY;
+        float footBoxW = footW + 2.0f * footPadX;
+        float footBoxH = footFont + 2.0f * footPadY;
+        // Recuadro de fondo gris
+        canvas.saveState();
+        canvas.setRGBColorFill(210, 210, 210);
+        canvas.rectangle(footBoxX, footBoxY, footBoxW, footBoxH);
+        canvas.fill();
+        canvas.restoreState();
+        // Texto centrado sobre el recuadro
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
         canvas.setLineWidth(0.6F);
         canvas.setRGBColorStroke(0, 0, 0);
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, 8.0F * sF);
-        canvas.setTextMatrix(x + 12.0f * sX, y + 9.0f * sY);
-        canvas.showText("Boleta No. " + numeroBoleta);
+        canvas.setFontAndSize(bf, footFont);
+        canvas.setTextMatrix(cx - footW / 2.0f, footTextY);
+        canvas.showText(foot);
         canvas.endText();
         canvas.restoreState();
 
