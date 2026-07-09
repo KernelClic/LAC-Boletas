@@ -870,6 +870,385 @@ public class Boleta {
         return impresos;
     }
 
+    /** Parte un texto en líneas que quepan en maxW usando la fuente/tamaño dados. */
+    private java.util.List<String> wrapTexto(BaseFont bf, String texto, float font, float maxW) {
+        java.util.List<String> lineas = new java.util.ArrayList<>();
+        if (texto == null || texto.trim().isEmpty()) return lineas;
+        String[] palabras = texto.trim().split("\\s+");
+        StringBuilder linea = new StringBuilder();
+        for (String p : palabras) {
+            String tentativa = (linea.length() == 0) ? p : linea + " " + p;
+            if (bf.getWidthPoint(tentativa, font) <= maxW || linea.length() == 0) {
+                linea.setLength(0);
+                linea.append(tentativa);
+            } else {
+                lineas.add(linea.toString());
+                linea.setLength(0);
+                linea.append(p);
+            }
+        }
+        if (linea.length() > 0) lineas.add(linea.toString());
+        return lineas;
+    }
+
+    /**
+     * Dibuja una línea de texto centrada en cx, en la baseline y, reduciendo la
+     * fuente si el texto no cabe en maxW. Devuelve la y de la baseline usada.
+     * (r,g,b) es el color; 0,0,0 = negro.
+     */
+    private float drawCentradoAutofit(PdfContentByte canvas, BaseFont bf, String texto,
+            float font, float cx, float y, float maxW, int r, int g, int b)
+            throws DocumentException, IOException {
+        if (texto == null || texto.isEmpty()) return y;
+        float f = font;
+        float w = bf.getWidthPoint(texto, f);
+        if (w > maxW && w > 0) { f *= (maxW / w); w = maxW; }
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);
+        canvas.setLineWidth(0.4F);
+        canvas.setRGBColorStroke(r, g, b);
+        canvas.setRGBColorFill(r, g, b);
+        canvas.setFontAndSize(bf, f);
+        canvas.setTextMatrix(cx - w / 2.0f, y);
+        canvas.showText(texto);
+        canvas.endText();
+        canvas.restoreState();
+        return y - f;
+    }
+
+    /** Dibuja una columna (cuadrante) de números apilados, negros y en negrita. */
+    private void drawCuadranteNumeros(PdfContentByte canvas, BaseFont bf,
+            ArrayList<String> stmpPrint, int startIdx, int count,
+            float colX, float colW, float firstCenterY, float step, float numFont,
+            ArrayList<String> impresos) throws DocumentException, IOException {
+        // Ajusta la fuente si el número más ancho no cabe en la columna
+        float maxW = colW * 0.92f;
+        float fuente = numFont;
+        for (int k = 0; k < count; k++) {
+            String s = (startIdx + k < stmpPrint.size()) ? stmpPrint.get(startIdx + k) : "#####";
+            float w = bf.getWidthPoint(s, fuente);
+            if (w > maxW && w > 0) fuente *= (maxW / w);
+        }
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);          // fill + stroke = negrita
+        canvas.setLineWidth(0.6F);
+        canvas.setRGBColorStroke(0, 0, 0);
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, fuente);
+        for (int k = 0; k < count; k++) {
+            String numero = (startIdx + k < stmpPrint.size()) ? stmpPrint.get(startIdx + k) : "#####";
+            float tw = bf.getWidthPoint(numero, fuente);
+            float ty = firstCenterY - k * step - fuente * 0.34f;
+            canvas.setTextMatrix(colX + (colW - tw) / 2.0f, ty);
+            canvas.showText(numero);
+            impresos.add(numero);
+        }
+        canvas.endText();
+        canvas.restoreState();
+    }
+
+    /**
+     * Dibuja una boleta de CUADRANTES (reporte tipo 4): 20 oportunidades en
+     * cuatro cuadros (2×2), columna central con título/caducidad/valor arriba,
+     * banda central con aviso legal + redes (WhatsApp/Facebook), y zona inferior
+     * central con texto vertical, imagen de dinero y dos QR (GANADOR/SEGURIDAD).
+     *
+     * Misma firma que {@link #drawRectangleVertical} para que writePDF pueda
+     * intercambiar el método según el tipo de reporte.
+     *
+     * Mapa de mensajes (según componentes de la interfaz):
+     *   msg1 = Caducidad (p.ej. "CADUCIDAD 10 AM")
+     *   msg2 = Aviso línea 1 (p.ej. "TACHONES-BORRONES ENMENDADURAS")
+     *   msg3 = Aviso línea 2 (p.ej. "ALTERACIONES")
+     *   msg4 = Aviso resaltado en ROJO (p.ej. "SE ANULA EL BOLETO")
+     *   msg5 = Texto vertical inferior (p.ej. "SOMOS FUENTE DE EMPLEO")
+     */
+    public ArrayList<String> drawRectangleCuadrantes(PdfContentByte canvas,
+            float x, float y, float ancho, float alto,
+            float margen, float espacio,
+            String titulo, String fecha, String valor, String msg1, String msg2, String msg3, String msg4, String msg5,
+            String msg6, String msg7, String msg8, String msg9,
+            int oportun,
+            int colortexto,
+            ArrayList<String> stmpPrint, int idx,
+            Image img, Image pre, String qrInfoContent, String qrPremioContent, String codSorteo, String numeroBoleta,
+            Image logoFb, Image logoWa, String textoFb, String textoWa, float wmOpacity)
+            throws DocumentException, IOException {
+
+        ArrayList<String> impresos = new ArrayList<>();
+
+        // Referencia de diseño: 148 (ancho) x 375 (alto) — 4 boletas por fila
+        float sX = ancho / 148.0f;
+        float sY = alto / 375.0f;
+        float sF = Math.min(sX, sY);
+        float cx = x + ancho / 2.0f;
+
+        BaseFont bf = BaseFont.createFont();
+
+        // ── Marco externo + interno ──────────────────────────────────────────
+        canvas.saveState();
+        canvas.setGrayFill(0.9F);
+        canvas.rectangle(x, y, ancho, alto);
+        canvas.rectangle(x + 3.0F, y + 3.5F, ancho - 6.0F, alto - 7.5F);
+        canvas.fillStroke();
+        canvas.restoreState();
+
+        // ── Imagen de fondo (marca de agua) con opacidad configurable ────────
+        canvas.saveState();
+        float op = Math.max(0.0f, Math.min(1.0f, wmOpacity));
+        if (op < 1.0f) {
+            PdfGState gs = new PdfGState();
+            gs.setFillOpacity(op);
+            gs.setStrokeOpacity(op);
+            canvas.setGState(gs);
+        }
+        img.setAbsolutePosition(x + 3.0F, y + 3.5F);
+        img.scaleAbsoluteWidth(ancho - 6.0F);
+        img.scaleAbsoluteHeight(alto - 7.5F);
+        img.setBorder(10);
+        img.setBorderColor(BaseColor.BLACK);
+        canvas.addImage(img);
+        canvas.restoreState();
+
+        // ── Geometría de columnas ────────────────────────────────────────────
+        // Columnas de números un poco más anchas para números más grandes; se
+        // deja un pequeño margen entre los cuadros y la columna central para que
+        // los textos NO invadan los recuadros.
+        float colW    = 44.0f * sX;
+        float leftX   = x + 4.0f * sX;
+        float rightX  = x + ancho - 4.0f * sX - colW;
+        float centerL = leftX + colW;
+        float centerR = rightX;
+        float centerGap = 4.0f * sX;                     // margen interno del texto central
+        float centerW = (centerR - centerL) - 2.0f * centerGap;   // ancho útil para textos
+        float centerCx = (centerL + centerR) / 2.0f;
+
+        // Marcos de los cuatro cuadrantes (envuelven bien los 5 números)
+        float topBoxTop = y + alto - 12.0f * sY;
+        float topBoxBot = y + alto - 122.0f * sY;
+        float botBoxTop = y + alto - 190.0f * sY;
+        float botBoxBot = y + alto - 300.0f * sY;
+        canvas.saveState();
+        canvas.setLineWidth(0.8F);
+        canvas.setRGBColorStroke(20, 20, 20);
+        canvas.rectangle(leftX,  topBoxBot, colW, topBoxTop - topBoxBot);
+        canvas.rectangle(rightX, topBoxBot, colW, topBoxTop - topBoxBot);
+        canvas.rectangle(leftX,  botBoxBot, colW, botBoxTop - botBoxBot);
+        canvas.rectangle(rightX, botBoxBot, colW, botBoxTop - botBoxBot);
+        canvas.stroke();
+        canvas.restoreState();
+
+        // ── 20 números en 4 cuadrantes (TL, TR, BL, BR = 5 c/u) ──────────────
+        // Distribución pareja: cada número al centro de su franja dentro del
+        // recuadro. Fuente más grande (se autoajusta si no cabe a lo ancho).
+        int nOp = Math.min(oportun, 20);
+        int porCuadrante = 5;
+        float topBoxH  = topBoxTop - topBoxBot;
+        float botBoxH  = botBoxTop - botBoxBot;
+        float topSlot  = topBoxH / porCuadrante;
+        float botSlot  = botBoxH / porCuadrante;
+        // Fuente de números: grande, acotada por el alto de franja y el ancho de
+        // columna (drawCuadranteNumeros la reduce si algún número no cabe a lo ancho).
+        float slotMin  = Math.min(topSlot, botSlot);
+        float numFont  = Math.min(slotMin * 0.64f, colW * 0.30f);
+        float topFirstY = topBoxTop - topSlot / 2.0f;   // centro del 1er número (arriba)
+        float botFirstY = botBoxTop - botSlot / 2.0f;   // centro del 1er número (abajo)
+        // TL
+        drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 0,  Math.min(porCuadrante, Math.max(0, nOp - 0)),
+                leftX,  colW, topFirstY, topSlot, numFont, impresos);
+        // TR
+        drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 5,  Math.min(porCuadrante, Math.max(0, nOp - 5)),
+                rightX, colW, topFirstY, topSlot, numFont, impresos);
+        // BL
+        drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 10, Math.min(porCuadrante, Math.max(0, nOp - 10)),
+                leftX,  colW, botFirstY, botSlot, numFont, impresos);
+        // BR
+        drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 15, Math.min(porCuadrante, Math.max(0, nOp - 15)),
+                rightX, colW, botFirstY, botSlot, numFont, impresos);
+
+        // ── Columna central superior: título, caducidad, valor ───────────────
+        // Todo se dibuja centrado y ACOTADO al ancho útil (centerW) para que no
+        // invada los cuadros de números. Cada línea se autoajusta si no cabe.
+        float headTop = y + alto - 16.0f * sY;
+        float titFont = 8.5f * sF;
+        java.util.List<String> titLineas = wrapTexto(bf, titulo, titFont, centerW);
+        float ty = headTop;
+        for (String l : titLineas) {
+            ty = drawCentradoAutofit(canvas, bf, l, titFont, centerCx, ty, centerW, 0, 0, 0);
+            ty -= 2.0f * sY;
+        }
+
+        // Caducidad (msg1) y Valor, centrados bajo el título
+        float infoFont = 7.5f * sF;
+        ty -= 6.0f * sY;
+        if (msg1 != null && !msg1.trim().isEmpty()) {
+            ty = drawCentradoAutofit(canvas, bf, msg1.trim(), infoFont, centerCx, ty, centerW, 0, 0, 0);
+            ty -= 4.0f * sY;
+        }
+        String valTxt = (valor != null && !valor.trim().isEmpty()) ? valor.trim() : "";
+        if (!valTxt.isEmpty()) {
+            String vt = valTxt.toUpperCase().contains("VALOR") ? valTxt : ("VALOR " + valTxt);
+            ty = drawCentradoAutofit(canvas, bf, vt, infoFont, centerCx, ty, centerW, 0, 0, 0);
+        }
+
+        // ── Banda central: aviso legal (izq) + redes (der) ───────────────────
+        float bandTop = y + alto - 126.0f * sY;
+        float bandBot = y + alto - 184.0f * sY;
+        // Aviso legal (msg2, msg3 en negro; msg4 en rojo), alineado a la izquierda
+        float avisoFont = 6.5f * sF;
+        float avisoX = x + 7.0f * sX;
+        float avisoW = cx - avisoX - 2.0f * sX;
+        java.util.List<String> avisoLineas = new java.util.ArrayList<>();
+        for (String m : new String[] { msg2, msg3 }) {
+            if (m != null && !m.trim().isEmpty()) avisoLineas.addAll(wrapTexto(bf, m, avisoFont, avisoW));
+        }
+        float ay = bandTop - avisoFont;
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);
+        canvas.setLineWidth(0.3F);
+        canvas.setRGBColorStroke(0, 0, 0);
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, avisoFont);
+        for (String l : avisoLineas) {
+            canvas.setTextMatrix(avisoX, ay);
+            canvas.showText(l);
+            ay -= (avisoFont + 2.0f * sY);
+        }
+        canvas.endText();
+        canvas.restoreState();
+        // msg4 en ROJO (aviso resaltado)
+        if (msg4 != null && !msg4.trim().isEmpty()) {
+            canvas.saveState();
+            canvas.beginText();
+            canvas.setTextRenderingMode(2);
+            canvas.setLineWidth(0.4F);
+            canvas.setRGBColorStroke(200, 0, 0);
+            canvas.setRGBColorFill(200, 0, 0);
+            canvas.setFontAndSize(bf, avisoFont + 0.5f * sF);
+            for (String l : wrapTexto(bf, msg4, avisoFont + 0.5f * sF, avisoW)) {
+                canvas.setTextMatrix(avisoX, ay);
+                canvas.showText(l);
+                ay -= (avisoFont + 2.0f * sY);
+            }
+            canvas.endText();
+            canvas.restoreState();
+        }
+
+        // Redes a la derecha (WhatsApp + Facebook), logo + texto
+        float logoSize = 12.0f * sF;
+        float redesFont = 6.5f * sF;
+        float redesX = cx + 3.0f * sX;
+        String tWa = (textoWa != null && !textoWa.trim().isEmpty()) ? textoWa : "WhatsApp";
+        String tFb = (textoFb != null && !textoFb.trim().isEmpty()) ? textoFb : "Facebook";
+        float waRowY = bandTop - logoSize - 2.0f * sY;
+        float fbRowY = waRowY - logoSize - 6.0f * sY;
+        drawLogo(canvas, logoWa, redesX, waRowY, logoSize, "w");
+        drawLogo(canvas, logoFb, redesX, fbRowY, logoSize, "f");
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);
+        canvas.setLineWidth(0.3F);
+        canvas.setRGBColorStroke(0, 0, 0);
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, redesFont);
+        canvas.setTextMatrix(redesX + logoSize + 4.0f * sX, waRowY + (logoSize - redesFont) / 2.0f + redesFont * 0.18f);
+        canvas.showText(tWa);
+        canvas.setTextMatrix(redesX + logoSize + 4.0f * sX, fbRowY + (logoSize - redesFont) / 2.0f + redesFont * 0.18f);
+        canvas.showText(tFb);
+        canvas.endText();
+        canvas.restoreState();
+
+        // ── Zona inferior central: texto vertical + dinero + 2 QR ────────────
+        // Texto vertical (msg5) rotado 90°, en una franja delgada junto al
+        // cuadrante inferior izquierdo.
+        if (msg5 != null && !msg5.trim().isEmpty()) {
+            float vFont = 6.5f * sF;
+            float vx = centerL + 6.0f * sX;
+            float vyBot = botBoxBot + 4.0f * sY;
+            canvas.saveState();
+            canvas.beginText();
+            canvas.setTextRenderingMode(2);
+            canvas.setLineWidth(0.4F);
+            canvas.setRGBColorStroke(200, 60, 0);
+            canvas.setRGBColorFill(200, 60, 0);
+            canvas.setFontAndSize(bf, vFont);
+            canvas.setTextMatrix(0, 1, -1, 0, vx, vyBot);   // rotación 90° CCW
+            canvas.showText(msg5.trim());
+            canvas.endText();
+            canvas.restoreState();
+        }
+
+        // Imagen de dinero (pre) pequeña, centrada bajo la banda
+        float dinW = 34.0f * sX, dinH = 26.0f * sY;
+        float dinX = centerCx - dinW / 2.0f + 6.0f * sX;
+        float dinY = y + alto - 214.0f * sY;
+        canvas.saveState();
+        pre.setAbsolutePosition(dinX, dinY);
+        pre.scaleAbsoluteWidth(dinW);
+        pre.scaleAbsoluteHeight(dinH);
+        canvas.addImage(pre);
+        canvas.restoreState();
+
+        // Dos QR apilados en la parte baja de la columna central
+        float qrGapV = 5.0f * sY;
+        float qrSize = Math.min(centerW * 0.80f, 34.0f * sF);
+        float qrBgPad = 2.0f * sF;
+        float qrX = centerCx - qrSize / 2.0f + 4.0f * sX;
+        float qrTop = y + alto - 244.0f * sY;         // borde superior del bloque QR
+        float ganQrY = qrTop - qrSize;
+        float segQrY = ganQrY - qrGapV - qrSize;
+        if (mostrarQrGanador) {
+            try {
+                canvas.saveState();
+                canvas.setColorFill(BaseColor.WHITE);
+                canvas.rectangle(qrX - qrBgPad, ganQrY - qrBgPad, qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+                canvas.fill();
+                canvas.restoreState();
+                Image qrGan = generarQRImage(qrPremioContent, qrSize);
+                qrGan.setAbsolutePosition(qrX, ganQrY);
+                canvas.saveState();
+                canvas.addImage(qrGan);
+                canvas.restoreState();
+            } catch (Exception e) {
+                System.err.println("[QR] Error QR Ganador (cuadrantes): " + e.getMessage());
+            }
+        }
+        try {
+            canvas.saveState();
+            canvas.setColorFill(BaseColor.WHITE);
+            canvas.rectangle(qrX - qrBgPad, segQrY - qrBgPad, qrSize + 2 * qrBgPad, qrSize + 2 * qrBgPad);
+            canvas.fill();
+            canvas.restoreState();
+            Image qrSeg = generarQRImage(qrInfoContent, qrSize);
+            qrSeg.setAbsolutePosition(qrX, segQrY);
+            canvas.saveState();
+            canvas.addImage(qrSeg);
+            canvas.restoreState();
+        } catch (Exception e) {
+            System.err.println("[QR] Error QR Seguridad (cuadrantes): " + e.getMessage());
+        }
+
+        // ── Número de la boleta (pie, esquina inferior izquierda) ────────────
+        float footFont = 7.0F * sF;
+        String foot = numeroBoleta;
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);
+        canvas.setLineWidth(0.5F);
+        canvas.setRGBColorStroke(0, 0, 0);
+        canvas.setRGBColorFill(0, 0, 0);
+        canvas.setFontAndSize(bf, footFont);
+        canvas.setTextMatrix(x + 7.0f * sX, y + 6.0f * sY);
+        canvas.showText(foot);
+        canvas.endText();
+        canvas.restoreState();
+
+        return impresos;
+    }
+
     /**
      * Genera un QR code usando ZXing a 200×200px nativos, exportado como PNG
      * y cargado como imagen iText. Esto garantiza módulos nítidos al imprimir.

@@ -79,7 +79,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         "12 Boletas - Carta H (3x4)",
                         "21 Boletas - Carta V (3x7)",
                         "15 Boletas - Carta V (3x5)",
-                        "8 Boletas - Vertical 10 Oport. (4x2)"
+                        "8 Boletas - Vertical 10 Oport. (4x2)",
+                        "8 Boletas - Cuadrantes 20 Oport. (4x2)"
         };
         // Propiedad en config/boletas-sync.properties que persiste la selección.
         private static final String PROP_REPORTES = "boletas.reportes.habilitados";
@@ -407,6 +408,15 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         System.err.println("[CONFIG] No se pudo guardar " + f + ": " + ex.getMessage());
                         return false;
                 }
+        }
+
+        /**
+         * ID real del reporte seleccionado en el combo (traduce el índice de
+         * selección al ID del catálogo vía reportesVisibles). -1 si no hay nada.
+         */
+        private int reporteSeleccionadoId() {
+                int sel = (jComboBoxReporte != null) ? jComboBoxReporte.getSelectedIndex() : -1;
+                return (sel >= 0 && sel < reportesVisibles.size()) ? reportesVisibles.get(sel) : -1;
         }
 
         /**
@@ -815,6 +825,18 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                 xi = 5;
                                 yi = (int) (792 - 10 - alto); // ≈ 407
                                 break;
+                        case 4: // 8 boletas CUADRANTES (20 oportunidades): 4 col x 2 filas, carta HORIZONTAL
+                                // Boleta real: 6.5 cm x 10 cm ≈ 184 x 283 pt.
+                                // Página landscape: 792 (ancho) x 612 (alto).
+                                maxCol = 4;
+                                maxFil = 2;
+                                ancho = 184;   // 6.5 cm
+                                alto = 283;    // 10 cm
+                                paso_x = 190;
+                                paso_y = 289;
+                                xi = 18;
+                                yi = (int) (612 - 16 - alto); // = 313 (fila superior)
+                                break;
                         default: // 0 → 12 boletas: 3 columnas x 4 filas, carta HORIZONTAL
                                 maxCol = MAXCOL; // 3
                                 maxFil = MAXFIL; // 4
@@ -865,7 +887,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 // imagen de fondo (mismo directorio Imagenes). Si fallan, quedan null
                 // y drawRectangleVertical dibuja un placeholder.
                 Image logoFb = null, logoWa = null;
-                if (tipoReporte == 3) {
+                if (tipoReporte == 3 || tipoReporte == 4) {
                         String imgDir = new java.io.File(txtImagen.getText()).getParent();
                         try { logoFb = Image.getInstance(imgDir + "/Facebook.png"); }
                         catch (Exception ex) { System.err.println("[LOGO] Facebook.png no cargó: " + ex.getMessage()); }
@@ -875,12 +897,13 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
                 try {
                         Document document;
-                        if (tipoReporte == 0) {
-                                // Carta horizontal (landscape)
+                        if (tipoReporte == 0 || tipoReporte == 4) {
+                                // Carta horizontal (landscape): 12 boletas (tipo 0) y
+                                // cuadrantes de 20 oportunidades (tipo 4).
                                 document = new Document(PageSize.LETTER, 10, 10, 10, 10);
                                 document.setPageSize(PageSize.LETTER.rotate());
                         } else {
-                                // Carta vertical (portrait) para 21 y 15 boletas
+                                // Carta vertical (portrait) para 21, 15 y 8 verticales
                                 document = new Document(PageSize.LETTER, 10, 10, 10, 10);
                                 // Portrait es el default de LETTER; no se rota
                         }
@@ -924,7 +947,25 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                         String premioBoleta = obtenerPremioLocal(boletaConsecutivoFormateada);
                                         String qrPremioContent = premioBoleta;
 
-                                        if (tipoReporte == 3) {
+                                        if (tipoReporte == 4) {
+                                                bol.drawRectangleCuadrantes(canvas,
+                                                                x, y, ancho, alto,
+                                                                5, 5,
+                                                                txtTitulo.getText(), txtFecha.getText(), txtVlrBoleta.getText(),
+                                                                txtMensaje1.getText(), txtMensaje2.getText(),
+                                                                txtMensaje3.getText(),
+                                                                txtMensaje4.getText(), txtMensaje5.getText(),
+                                                                txtMensaje6.getText(),
+                                                                txtMensaje7.getText(), txtMensaje8.getText(),
+                                                                txtMensaje9.getText(),
+                                                                opor, color,
+                                                                stmpPrint, index,
+                                                                img, pre, qrInfoContent, qrPremioContent,
+                                                                sorteoNombre, boletaConsecutivoFormateada,
+                                                                logoFb, logoWa,
+                                                                txtFacebook.getText(), txtWhatsapp.getText(),
+                                                                getOpacidadMarcaAgua());
+                                        } else if (tipoReporte == 3) {
                                                 bol.drawRectangleVertical(canvas,
                                                                 x, y, ancho, alto,
                                                                 5, 5,
@@ -1779,7 +1820,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 });
 
                 jComboBoxReporte.setModel(new javax.swing.DefaultComboBoxModel<>(
-                                new String[] { "12 Boletas - Carta H (3x4)", "21 Boletas - Carta V (3x7)", "15 Boletas - Carta V (3x5)", "8 Boletas - Vertical 10 Oport. (4x2)" }));
+                                new String[] { "12 Boletas - Carta H (3x4)", "21 Boletas - Carta V (3x7)", "15 Boletas - Carta V (3x5)", "8 Boletas - Vertical 10 Oport. (4x2)", "8 Boletas - Cuadrantes 20 Oport. (4x2)" }));
                 jComboBoxReporte.addActionListener(new java.awt.event.ActionListener() {
                         public void actionPerformed(java.awt.event.ActionEvent evt) {
                                 jComboBoxReporteActionPerformed(evt);
@@ -1914,13 +1955,20 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 txtFilePDF.setText(objSDF2.format(objDate) + ".pdf");
 
                 try {
-                        int nroOportunidades = Integer.parseInt(this.txtOportunidades.getText());
-                        if (nroOportunidades >= 0 && nroOportunidades <= 10) {
-                                this.generarNumerosAleatorios(nroOportunidades);
+                        // El reporte de cuadrantes (tipo 4) es SIEMPRE de 20 oportunidades.
+                        int tipoRepSel = reporteSeleccionadoId();
+                        if (tipoRepSel == 4) {
+                                this.txtOportunidades.setText("20");
+                                this.generarNumerosAleatorios(20);
                         } else {
-                                JOptionPane.showMessageDialog(this, "Digite Nro Oportunidades entre [3 y 10]",
-                                                "Informacion",
-                                                JOptionPane.INFORMATION_MESSAGE);
+                                int nroOportunidades = Integer.parseInt(this.txtOportunidades.getText());
+                                if (nroOportunidades >= 0 && nroOportunidades <= 10) {
+                                        this.generarNumerosAleatorios(nroOportunidades);
+                                } else {
+                                        JOptionPane.showMessageDialog(this, "Digite Nro Oportunidades entre [3 y 10]",
+                                                        "Informacion",
+                                                        JOptionPane.INFORMATION_MESSAGE);
+                                }
                         }
                 } catch (FileNotFoundException | BadElementException ex) {
                         Logger.getLogger(Generador_Boletas.class.getName()).log(Level.SEVERE, null, ex);
