@@ -1,2 +1,0 @@
-Apache Ant(TM) version 1.10.9 compiled on December 17 1969
-Buildfile: /mnt/datos/00-KC/00_LAC_BINGO/00_GitHub/Boletas/Boletas/LAC_Boletas/build.xml

@@ -117,6 +117,15 @@ public class BoletaCloudSync {
             return codigoPlaza;
         }
 
+        /**
+         * URL JDBC de la base local. La expone para que el generador escriba en
+         * EXACTAMENTE la misma base que lee este demonio; si cada uno abre una
+         * ruta distinta, las boletas nunca se sincronizan.
+         */
+        public String getSqliteUrl() {
+            return sqliteUrl;
+        }
+
         private static Properties loadPropertiesFile(String configPath) {
             Properties properties = new Properties();
             File file = new File(configPath);
