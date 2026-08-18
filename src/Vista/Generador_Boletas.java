@@ -826,16 +826,17 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                 yi = (int) (792 - 10 - alto); // ≈ 407
                                 break;
                         case 4: // 8 boletas CUADRANTES (20 oportunidades): 4 col x 2 filas, carta HORIZONTAL
-                                // Boleta real: 6.5 cm x 10 cm ≈ 184 x 283 pt.
                                 // Página landscape: 792 (ancho) x 612 (alto).
+                                // Para 4 columnas + margen el ancho máx. es ~186 pt (≈6.55 cm);
+                                // alto = 10 cm. (4x7cm=28cm no cabe en carta 27.9cm.)
                                 maxCol = 4;
                                 maxFil = 2;
-                                ancho = 184;   // 6.5 cm
+                                ancho = 186;   // ≈ 6.55 cm (máx. para 4 columnas)
                                 alto = 283;    // 10 cm
-                                paso_x = 190;
+                                paso_x = 192;
                                 paso_y = 289;
-                                xi = 18;
-                                yi = (int) (612 - 16 - alto); // = 313 (fila superior)
+                                xi = 15;                      // margen externo
+                                yi = (int) (612 - 20 - alto); // = 309 (fila superior)
                                 break;
                         default: // 0 → 12 boletas: 3 columnas x 4 filas, carta HORIZONTAL
                                 maxCol = MAXCOL; // 3
@@ -900,8 +901,18 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         if (tipoReporte == 0 || tipoReporte == 4) {
                                 // Carta horizontal (landscape): 12 boletas (tipo 0) y
                                 // cuadrantes de 20 oportunidades (tipo 4).
-                                document = new Document(PageSize.LETTER, 10, 10, 10, 10);
-                                document.setPageSize(PageSize.LETTER.rotate());
+                                // IMPORTANTE: se usa un MediaBox REALMENTE horizontal
+                                // (792x612) en vez de PageSize.LETTER.rotate(). Con
+                                // .rotate() iText genera una página VERTICAL (612x792)
+                                // con el atributo /Rotate 90; muchas impresoras miran el
+                                // tamaño físico (vertical) e ignoran el /Rotate, por eso
+                                // solo ofrecían orientación vertical. Con el rectángulo
+                                // horizontal explícito el papel queda horizontal de verdad.
+                                com.itextpdf.text.Rectangle cartaHorizontal =
+                                                new com.itextpdf.text.Rectangle(
+                                                                PageSize.LETTER.getHeight(),
+                                                                PageSize.LETTER.getWidth());
+                                document = new Document(cartaHorizontal, 10, 10, 10, 10);
                         } else {
                                 // Carta vertical (portrait) para 21, 15 y 8 verticales
                                 document = new Document(PageSize.LETTER, 10, 10, 10, 10);
@@ -1930,8 +1941,44 @@ public class Generador_Boletas extends javax.swing.JFrame {
         }// </editor-fold>//GEN-END:initComponents
 
         private void jComboBoxReporteActionPerformed(java.awt.event.ActionEvent evt) {// GEN-FIRST:event_jComboBoxReporteActionPerformed
-                // TODO add your handling code here:
+                // Al elegir el reporte de CUADRANTES (tipo 4), rellenar los campos
+                // de texto para que la boleta quede de acuerdo a la imagen de referencia.
+                if (reporteSeleccionadoId() == 4) {
+                        aplicarTextosCuadrante();
+                }
         }// GEN-LAST:event_jComboBoxReporteActionPerformed
+
+        /**
+         * Rellena los campos de texto con los valores de la boleta de CUADRANTES
+         * (tipo 4) para que el reporte quede idéntico a la referencia. Se invoca
+         * automáticamente al seleccionar ese reporte en el combo.
+         *
+         * Mapa de campos → mensajes de {@code Boleta.drawRectangleCuadrantes}:
+         *   txtTitulo   → título (columna central superior)
+         *   txtVlrBoleta→ valor  ("VALOR 20 PESOS")
+         *   txtMensaje1 → msg1   caducidad ("CADUCIDAD 10 AM")
+         *   txtMensaje2 → msg2   aviso negro ("TACHONES-BORRONES ENMENDADURAS ALTERACIONES")
+         *   txtMensaje3 → msg3   (vacío; el aviso completo va en msg2)
+         *   txtMensaje4 → msg4   aviso en ROJO ("SE ANULA EL BOLETO")
+         *   txtMensaje5 → msg5   texto vertical ("SOMOS FUENTE DE EMPLEO")
+         *   txtWhatsapp / txtFacebook → redes sociales
+         */
+        private void aplicarTextosCuadrante() {
+                if (txtTitulo != null)    txtTitulo.setText("SORTEO GOMEZ PALACIO DURANGO");
+                if (txtFecha != null)     txtFecha.setText("");
+                if (txtVlrBoleta != null) txtVlrBoleta.setText("20 PESOS");
+                if (txtMensaje1 != null)  txtMensaje1.setText("CADUCIDAD 10 AM");
+                if (txtMensaje2 != null)  txtMensaje2.setText("TACHONES-BORRONES ENMENDADURAS ALTERACIONES");
+                if (txtMensaje3 != null)  txtMensaje3.setText("");
+                if (txtMensaje4 != null)  txtMensaje4.setText("SE ANULA EL BOLETO");
+                if (txtMensaje5 != null)  txtMensaje5.setText("SOMOS FUENTE DE EMPLEO");
+                if (txtMensaje6 != null)  txtMensaje6.setText("");
+                if (txtMensaje7 != null)  txtMensaje7.setText("");
+                if (txtMensaje8 != null)  txtMensaje8.setText("");
+                if (txtMensaje9 != null)  txtMensaje9.setText("");
+                if (txtWhatsapp != null)  txtWhatsapp.setText("8712754325");
+                if (txtFacebook != null)  txtFacebook.setText("Sorteo Gomez P. Dgo");
+        }
 
         private void txtFechaActionPerformed(java.awt.event.ActionEvent evt) {// GEN-FIRST:event_txtFechaActionPerformed
                 // TODO add your handling code here:

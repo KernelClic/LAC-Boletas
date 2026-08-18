@@ -34,18 +34,18 @@ public class VistaCuadrantesPreview {
         String titulo = "SORTEO GOMEZ PALACIO DURANGO";
         String fecha  = "25-06-2026";
         String valor  = "20 PESOS";
-        String m1 = "CADUCIDAD 10 AM";                              // caducidad
-        String m2 = "TACHONES-BORRONES ENMENDADURAS ALTERACIONES";  // aviso 1
-        String m3 = "";                                             // aviso 2
-        String m4 = "SE ANULA EL BOLETO";                           // aviso rojo
-        String m5 = "SOMOS FUENTE DE EMPLEO";                       // vertical
+        String m1 = "CADUCIDAD 10 AM";                                       // caducidad
+        String m2 = "TACHONES-BORRONES ENMENDADURAS ALTERACIONES";           // aviso negro (3 líneas)
+        String m3 = "";                                                      // (sin usar; el aviso va en m2)
+        String m4 = "SE ANULA EL BOLETO";                                    // aviso rojo
+        String m5 = "SOMOS FUENTE DE EMPLEO";                                // vertical
         String m6 = "", m7 = "", m8 = "", m9 = "";
         String fb = "Sorteo Gomez P. Dgo";
-        String wa = "871 275 4325";
+        String wa = "8712754325";
 
         int maxCol = 4, maxFil = 2;
-        float ancho = 184, alto = 283, paso_x = 190, paso_y = 289;
-        float xi = 18, yi = 612 - 16 - alto;
+        float ancho = 186, alto = 283, paso_x = 192, paso_y = 289;
+        float xi = 15, yi = 612 - 20 - alto;
         int idx = 0;
         for (int f = 0; f < maxFil; f++) {
             for (int c = 0; c < maxCol; c++) {

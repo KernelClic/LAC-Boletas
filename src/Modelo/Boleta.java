@@ -917,6 +917,76 @@ public class Boleta {
         return y - f;
     }
 
+    /**
+     * Dibuja un mensaje (posiblemente multilínea, con wrap) alineado a la
+     * izquierda desde x0, comenzando en la baseline y, con color (r,g,b).
+     * Devuelve la y de la siguiente línea disponible. Si el texto es vacío,
+     * devuelve y sin cambios.
+     */
+    private float drawBloqueIzq(PdfContentByte canvas, BaseFont bf, String texto,
+            float font, float x0, float y, float maxW, int r, int g, int b)
+            throws DocumentException, IOException {
+        if (texto == null || texto.trim().isEmpty()) return y;
+        java.util.List<String> lineas = wrapTexto(bf, texto, font, maxW);
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);
+        canvas.setLineWidth(0.4F);
+        canvas.setRGBColorStroke(r, g, b);
+        canvas.setRGBColorFill(r, g, b);
+        canvas.setFontAndSize(bf, font);
+        float cy = y;
+        for (String l : lineas) {
+            canvas.setTextMatrix(x0, cy);
+            canvas.showText(l);
+            cy -= (font + 2.0f);
+        }
+        canvas.endText();
+        canvas.restoreState();
+        return cy;
+    }
+
+    /**
+     * Dibuja un mensaje JUSTIFICADO (flush a ambos márgenes) desde x0, ocupando
+     * exactamente el ancho w. Cada línea se estira con espaciado de caracteres
+     * para tocar el margen izquierdo y el derecho. La fuente se reduce si algún
+     * token no cabe en w. Devuelve la y de la siguiente línea disponible.
+     */
+    private float drawBloqueJustificado(PdfContentByte canvas, BaseFont bf, String texto,
+            float font, float x0, float y, float w, int r, int g, int b, float lineGap)
+            throws DocumentException, IOException {
+        if (texto == null || texto.trim().isEmpty()) return y;
+        // Reduce la fuente si el token más ancho no cabe en w.
+        float f = font;
+        for (String p : texto.trim().split("\\s+")) {
+            float pw = bf.getWidthPoint(p, f);
+            if (pw > w && pw > 0) f *= (w / pw);
+        }
+        java.util.List<String> lineas = wrapTexto(bf, texto, f, w);
+        canvas.saveState();
+        canvas.beginText();
+        canvas.setTextRenderingMode(2);
+        canvas.setLineWidth(0.4F);
+        canvas.setRGBColorStroke(r, g, b);
+        canvas.setRGBColorFill(r, g, b);
+        canvas.setFontAndSize(bf, f);
+        float cy = y;
+        for (String l : lineas) {
+            float lw = bf.getWidthPoint(l, f);
+            int n = l.length();
+            // Espaciado extra por carácter para que la línea llene w (flush izq/der).
+            float cs = (n > 1 && lw < w) ? (w - lw) / (n - 1) : 0f;
+            canvas.setCharacterSpacing(cs);
+            canvas.setTextMatrix(x0, cy);
+            canvas.showText(l);
+            cy -= (f + lineGap);
+        }
+        canvas.setCharacterSpacing(0f);
+        canvas.endText();
+        canvas.restoreState();
+        return cy;
+    }
+
     /** Dibuja una columna (cuadrante) de números apilados, negros y en negrita. */
     private void drawCuadranteNumeros(PdfContentByte canvas, BaseFont bf,
             ArrayList<String> stmpPrint, int startIdx, int count,
@@ -1012,194 +1082,203 @@ public class Boleta {
         canvas.addImage(img);
         canvas.restoreState();
 
-        // ── Geometría de columnas ────────────────────────────────────────────
-        // Columnas de números un poco más anchas para números más grandes; se
-        // deja un pequeño margen entre los cuadros y la columna central para que
-        // los textos NO invadan los recuadros.
-        float colW    = 44.0f * sX;
-        float leftX   = x + 4.0f * sX;
-        float rightX  = x + ancho - 4.0f * sX - colW;
-        float centerL = leftX + colW;
+        // ── Geometría: cuadros con MARGEN respecto al marco de la boleta ─────
+        float frameInsetX = 10.0f * sX;                  // margen horizontal al marco
+        float frameInsetY = 12.0f * sY;                  // margen vertical al marco
+        float boxW    = 44.0f * sX;
+        float leftX   = x + frameInsetX;                 // margen a la izquierda
+        float rightX  = x + ancho - frameInsetX - boxW;  // margen a la derecha
+        float centerL = leftX + boxW;
         float centerR = rightX;
-        float centerGap = 4.0f * sX;                     // margen interno del texto central
+        float centerGap = 3.0f * sX;
         float centerW = (centerR - centerL) - 2.0f * centerGap;   // ancho útil para textos
         float centerCx = (centerL + centerR) / 2.0f;
 
-        // Marcos de los cuatro cuadrantes (envuelven bien los 5 números)
-        float topBoxTop = y + alto - 12.0f * sY;
-        float topBoxBot = y + alto - 122.0f * sY;
-        float botBoxTop = y + alto - 190.0f * sY;
-        float botBoxBot = y + alto - 300.0f * sY;
+        // Cuadros en las esquinas, separados del marco por el margen. Los
+        // inferiores dejan una franja para el serial. Cuadros MÁS ALTOS: los 5
+        // números de cada cuadrante se re-espacian uniformemente (slot = boxH/5).
+        float boxH = 137.0f * sY;
+        float topBoxTop = y + alto - frameInsetY;        // margen arriba
+        float topBoxBot = topBoxTop - boxH;
+        float botBoxBot = y + frameInsetY + 4.0f * sY;   // margen abajo + franja serial
+        float botBoxTop = botBoxBot + boxH;
         canvas.saveState();
-        canvas.setLineWidth(0.8F);
+        canvas.setColorFill(BaseColor.WHITE);      // fondo BLANCO dentro de los cuadros
+        canvas.setLineWidth(0.9F);
         canvas.setRGBColorStroke(20, 20, 20);
-        canvas.rectangle(leftX,  topBoxBot, colW, topBoxTop - topBoxBot);
-        canvas.rectangle(rightX, topBoxBot, colW, topBoxTop - topBoxBot);
-        canvas.rectangle(leftX,  botBoxBot, colW, botBoxTop - botBoxBot);
-        canvas.rectangle(rightX, botBoxBot, colW, botBoxTop - botBoxBot);
-        canvas.stroke();
+        canvas.rectangle(leftX,  topBoxBot, boxW, boxH);   // TL
+        canvas.rectangle(rightX, topBoxBot, boxW, boxH);   // TR
+        canvas.rectangle(leftX,  botBoxBot, boxW, boxH);   // BL
+        canvas.rectangle(rightX, botBoxBot, boxW, boxH);   // BR
+        canvas.fillStroke();
         canvas.restoreState();
 
         // ── 20 números en 4 cuadrantes (TL, TR, BL, BR = 5 c/u) ──────────────
-        // Distribución pareja: cada número al centro de su franja dentro del
-        // recuadro. Fuente más grande (se autoajusta si no cabe a lo ancho).
+        // Distribución pareja dentro de cada cuadro; fuente GRANDE (autoajustada).
         int nOp = Math.min(oportun, 20);
         int porCuadrante = 5;
-        float topBoxH  = topBoxTop - topBoxBot;
-        float botBoxH  = botBoxTop - botBoxBot;
-        float topSlot  = topBoxH / porCuadrante;
-        float botSlot  = botBoxH / porCuadrante;
-        // Fuente de números: grande, acotada por el alto de franja y el ancho de
-        // columna (drawCuadranteNumeros la reduce si algún número no cabe a lo ancho).
-        float slotMin  = Math.min(topSlot, botSlot);
-        float numFont  = Math.min(slotMin * 0.64f, colW * 0.30f);
-        float topFirstY = topBoxTop - topSlot / 2.0f;   // centro del 1er número (arriba)
-        float botFirstY = botBoxTop - botSlot / 2.0f;   // centro del 1er número (abajo)
+        float slot = boxH / porCuadrante;
+        float numFont = Math.min(slot * 0.86f, boxW * 0.40f);
+        float topFirstY = topBoxTop - slot / 2.0f;   // centro del 1er número (arriba)
+        float botFirstY = botBoxTop - slot / 2.0f;   // centro del 1er número (abajo)
         // TL
         drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 0,  Math.min(porCuadrante, Math.max(0, nOp - 0)),
-                leftX,  colW, topFirstY, topSlot, numFont, impresos);
+                leftX,  boxW, topFirstY, slot, numFont, impresos);
         // TR
         drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 5,  Math.min(porCuadrante, Math.max(0, nOp - 5)),
-                rightX, colW, topFirstY, topSlot, numFont, impresos);
+                rightX, boxW, topFirstY, slot, numFont, impresos);
         // BL
         drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 10, Math.min(porCuadrante, Math.max(0, nOp - 10)),
-                leftX,  colW, botFirstY, botSlot, numFont, impresos);
+                leftX,  boxW, botFirstY, slot, numFont, impresos);
         // BR
         drawCuadranteNumeros(canvas, bf, stmpPrint, idx + 15, Math.min(porCuadrante, Math.max(0, nOp - 15)),
-                rightX, colW, botFirstY, botSlot, numFont, impresos);
+                rightX, boxW, botFirstY, slot, numFont, impresos);
 
-        // ── Columna central superior: título, caducidad, valor ───────────────
-        // Todo se dibuja centrado y ACOTADO al ancho útil (centerW) para que no
-        // invada los cuadros de números. Cada línea se autoajusta si no cabe.
-        float headTop = y + alto - 16.0f * sY;
-        float titFont = 8.5f * sF;
+        // ── Columna central superior: título (grande), caducidad (grande), valor ─
+        // Todo centrado y ACOTADO a centerW (autoajuste) para no invadir cuadros.
+        float titFont = 13.0f * sF;
         java.util.List<String> titLineas = wrapTexto(bf, titulo, titFont, centerW);
-        float ty = headTop;
+        float ty = y + alto - 24.0f * sY;   // título más abajo
         for (String l : titLineas) {
             ty = drawCentradoAutofit(canvas, bf, l, titFont, centerCx, ty, centerW, 0, 0, 0);
-            ty -= 2.0f * sY;
+            ty -= 2.5f * sY;
         }
 
-        // Caducidad (msg1) y Valor, centrados bajo el título
-        float infoFont = 7.5f * sF;
-        ty -= 6.0f * sY;
+        // Caducidad (msg1) — MÁS GRANDE y en DOS líneas centradas
+        // ("CADUCIDAD" / "10 AM"). Fuente común: la mayor que haga caber la línea
+        // más ancha en el ancho central.
+        float cadFont = 13.0f * sF;
+        ty -= 9.0f * sY;
         if (msg1 != null && !msg1.trim().isEmpty()) {
-            ty = drawCentradoAutofit(canvas, bf, msg1.trim(), infoFont, centerCx, ty, centerW, 0, 0, 0);
-            ty -= 4.0f * sY;
+            java.util.List<String> cadL = wrapTexto(bf, msg1.trim(), cadFont, centerW);
+            float fCad = cadFont;
+            for (String l : cadL) {
+                float w = bf.getWidthPoint(l, fCad);
+                if (w > centerW && w > 0) fCad *= centerW / w;
+            }
+            for (String l : cadL) {
+                ty = drawCentradoAutofit(canvas, bf, l, fCad, centerCx, ty, centerW, 0, 0, 0);
+                ty -= 2.5f * sY;
+            }
         }
+
+        // Valor — MÁS GRANDE y en DOS líneas centradas ("VALOR" / "20 PESOS").
+        // FLUYE justo debajo de la caducidad (no se ancla desde abajo) para no
+        // solaparse con ella.
         String valTxt = (valor != null && !valor.trim().isEmpty()) ? valor.trim() : "";
         if (!valTxt.isEmpty()) {
-            String vt = valTxt.toUpperCase().contains("VALOR") ? valTxt : ("VALOR " + valTxt);
-            ty = drawCentradoAutofit(canvas, bf, vt, infoFont, centerCx, ty, centerW, 0, 0, 0);
-        }
-
-        // ── Banda central: aviso legal (izq) + redes (der) ───────────────────
-        float bandTop = y + alto - 126.0f * sY;
-        float bandBot = y + alto - 184.0f * sY;
-        // Aviso legal (msg2, msg3 en negro; msg4 en rojo), alineado a la izquierda
-        float avisoFont = 6.5f * sF;
-        float avisoX = x + 7.0f * sX;
-        float avisoW = cx - avisoX - 2.0f * sX;
-        java.util.List<String> avisoLineas = new java.util.ArrayList<>();
-        for (String m : new String[] { msg2, msg3 }) {
-            if (m != null && !m.trim().isEmpty()) avisoLineas.addAll(wrapTexto(bf, m, avisoFont, avisoW));
-        }
-        float ay = bandTop - avisoFont;
-        canvas.saveState();
-        canvas.beginText();
-        canvas.setTextRenderingMode(2);
-        canvas.setLineWidth(0.3F);
-        canvas.setRGBColorStroke(0, 0, 0);
-        canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, avisoFont);
-        for (String l : avisoLineas) {
-            canvas.setTextMatrix(avisoX, ay);
-            canvas.showText(l);
-            ay -= (avisoFont + 2.0f * sY);
-        }
-        canvas.endText();
-        canvas.restoreState();
-        // msg4 en ROJO (aviso resaltado)
-        if (msg4 != null && !msg4.trim().isEmpty()) {
-            canvas.saveState();
-            canvas.beginText();
-            canvas.setTextRenderingMode(2);
-            canvas.setLineWidth(0.4F);
-            canvas.setRGBColorStroke(200, 0, 0);
-            canvas.setRGBColorFill(200, 0, 0);
-            canvas.setFontAndSize(bf, avisoFont + 0.5f * sF);
-            for (String l : wrapTexto(bf, msg4, avisoFont + 0.5f * sF, avisoW)) {
-                canvas.setTextMatrix(avisoX, ay);
-                canvas.showText(l);
-                ay -= (avisoFont + 2.0f * sY);
+            // Forzar 2 líneas: "VALOR" arriba y el monto ("20 PESOS") junto abajo.
+            String monto = valTxt.toUpperCase().startsWith("VALOR")
+                    ? valTxt.substring(5).trim() : valTxt;
+            java.util.List<String> valL = new java.util.ArrayList<>();
+            valL.add("VALOR");
+            if (!monto.isEmpty()) valL.add(monto);
+            float valFont = 13.0f * sF;
+            float fVal = valFont;
+            for (String l : valL) {
+                float w = bf.getWidthPoint(l, fVal);
+                if (w > centerW && w > 0) fVal *= centerW / w;
             }
-            canvas.endText();
-            canvas.restoreState();
+            ty -= 7.0f * sY;   // separación respecto a la caducidad
+            for (String l : valL) {
+                ty = drawCentradoAutofit(canvas, bf, l, fVal, centerCx, ty, centerW, 0, 0, 0);
+                ty -= 2.5f * sY;
+            }
         }
 
-        // Redes a la derecha (WhatsApp + Facebook), logo + texto
-        float logoSize = 12.0f * sF;
-        float redesFont = 6.5f * sF;
-        float redesX = cx + 3.0f * sX;
+        // ── Banda central: aviso (izq) + redes (der) ─────────────────────────
+        // msg2 = "El aporte..." (grande, un poco menos que el título)
+        // msg3 = "Responsable..." (mediano)  ·  msg4 = aviso en ROJO
+        float bandTop = topBoxBot - 4.0f * sY;
+        float avisoX = leftX;                            // margen izq. = borde de los cuadros
+        float avisoRight = cx - 4.0f * sX;               // no invade la zona central/redes
+        float avisoW = avisoRight - avisoX;              // ancho útil del bloque de aviso
+        float aporteFont = 10.5f * sF;
+        float respFont   = 9.5f * sF;
+        float rojoFont   = 8.8f * sF;   // cabe "SE ANULA EL BOLETO" en una sola línea
+        float lineGap    = 2.5f * sY;
+        float ay = bandTop - aporteFont;
+        // msg2 (aviso negro, p.ej. "TACHONES-BORRONES ENMENDADURAS ALTERACIONES")
+        // JUSTIFICADO al ancho de los cuadros (flush izq/der), sin salirse del margen.
+        ay = drawBloqueJustificado(canvas, bf, msg2, aporteFont, avisoX, ay, avisoW, 0, 0, 0, lineGap);
+        // msg3 (línea extra opcional) — también justificada
+        ay = drawBloqueJustificado(canvas, bf, msg3, respFont, avisoX, ay, avisoW, 0, 0, 0, lineGap);
+        // msg4 — ROJO, justificado ("SE ANULA EL BOLETO")
+        ay = drawBloqueJustificado(canvas, bf, msg4, rojoFont, avisoX, ay, avisoW, 200, 0, 0, lineGap);
+
+        // Redes (WhatsApp + Facebook) — logos y textos un poco más grandes y
+        // desplazados un poco a la izquierda.
+        float logoSize = 20.5f * sF;
+        float redesFont = 10.5f * sF;
+        float redesX = cx - 1.0f * sX;
         String tWa = (textoWa != null && !textoWa.trim().isEmpty()) ? textoWa : "WhatsApp";
         String tFb = (textoFb != null && !textoFb.trim().isEmpty()) ? textoFb : "Facebook";
-        float waRowY = bandTop - logoSize - 2.0f * sY;
+        float waRowY = bandTop - logoSize;
         float fbRowY = waRowY - logoSize - 6.0f * sY;
         drawLogo(canvas, logoWa, redesX, waRowY, logoSize, "w");
         drawLogo(canvas, logoFb, redesX, fbRowY, logoSize, "f");
+        // Texto junto a los logos, autoajustado para NO traslapar el borde derecho
+        // de la boleta (cada texto reduce su fuente sólo si no cabe).
+        float redesTxtX = redesX + logoSize + 4.0f * sX;
+        float redesTxtMaxW = (x + ancho - frameInsetX) - redesTxtX;
+        float waFont = redesFont;
+        float waW = bf.getWidthPoint(tWa, waFont);
+        if (waW > redesTxtMaxW && waW > 0) waFont *= redesTxtMaxW / waW;
+        float fbFont = redesFont;
+        float fbW = bf.getWidthPoint(tFb, fbFont);
+        if (fbW > redesTxtMaxW && fbW > 0) fbFont *= redesTxtMaxW / fbW;
         canvas.saveState();
         canvas.beginText();
         canvas.setTextRenderingMode(2);
-        canvas.setLineWidth(0.3F);
+        canvas.setLineWidth(0.35F);
         canvas.setRGBColorStroke(0, 0, 0);
         canvas.setRGBColorFill(0, 0, 0);
-        canvas.setFontAndSize(bf, redesFont);
-        canvas.setTextMatrix(redesX + logoSize + 4.0f * sX, waRowY + (logoSize - redesFont) / 2.0f + redesFont * 0.18f);
+        canvas.setFontAndSize(bf, waFont);
+        canvas.setTextMatrix(redesTxtX, waRowY + (logoSize - waFont) / 2.0f + waFont * 0.18f);
         canvas.showText(tWa);
-        canvas.setTextMatrix(redesX + logoSize + 4.0f * sX, fbRowY + (logoSize - redesFont) / 2.0f + redesFont * 0.18f);
+        canvas.setFontAndSize(bf, fbFont);
+        canvas.setTextMatrix(redesTxtX, fbRowY + (logoSize - fbFont) / 2.0f + fbFont * 0.18f);
         canvas.showText(tFb);
         canvas.endText();
         canvas.restoreState();
 
-        // ── Zona inferior central: texto vertical + dinero + 2 QR ────────────
-        // Texto vertical (msg5) rotado 90°, en una franja delgada junto al
-        // cuadrante inferior izquierdo.
+        // "SOMOS FUENTE DE EMPLEO" (msg5): franja de ANCHO COMPLETO (del extremo
+        // izquierdo al derecho de la boleta), CENTRADA, en naranja, al pie de la banda.
         if (msg5 != null && !msg5.trim().isEmpty()) {
-            float vFont = 6.5f * sF;
-            float vx = centerL + 6.0f * sX;
-            float vyBot = botBoxBot + 4.0f * sY;
-            canvas.saveState();
-            canvas.beginText();
-            canvas.setTextRenderingMode(2);
-            canvas.setLineWidth(0.4F);
-            canvas.setRGBColorStroke(200, 60, 0);
-            canvas.setRGBColorFill(200, 60, 0);
-            canvas.setFontAndSize(bf, vFont);
-            canvas.setTextMatrix(0, 1, -1, 0, vx, vyBot);   // rotación 90° CCW
-            canvas.showText(msg5.trim());
-            canvas.endText();
-            canvas.restoreState();
+            float somosFont = 10.5f * sF;
+            float somosLeft = leftX;
+            float somosRight = rightX + boxW;
+            float somosW = somosRight - somosLeft;
+            float somosCx = (somosLeft + somosRight) / 2.0f;
+            float somosY = botBoxTop + 4.5f * sY;
+            drawCentradoAutofit(canvas, bf, msg5.trim(), somosFont, somosCx, somosY, somosW, 200, 60, 0);
         }
 
-        // Imagen de dinero (pre) pequeña, centrada bajo la banda
-        float dinW = 34.0f * sX, dinH = 26.0f * sY;
-        float dinX = centerCx - dinW / 2.0f + 6.0f * sX;
-        float dinY = y + alto - 214.0f * sY;
-        canvas.saveState();
-        pre.setAbsolutePosition(dinX, dinY);
-        pre.scaleAbsoluteWidth(dinW);
-        pre.scaleAbsoluteHeight(dinH);
-        canvas.addImage(pre);
-        canvas.restoreState();
-
-        // Dos QR apilados en la parte baja de la columna central
-        float qrGapV = 5.0f * sY;
-        float qrSize = Math.min(centerW * 0.80f, 34.0f * sF);
-        float qrBgPad = 2.0f * sF;
-        float qrX = centerCx - qrSize / 2.0f + 4.0f * sX;
-        float qrTop = y + alto - 244.0f * sY;         // borde superior del bloque QR
-        float ganQrY = qrTop - qrSize;
-        float segQrY = ganQrY - qrGapV - qrSize;
+        // ── Zona inferior central: QR(s) lo más GRANDES posible ──────────────
+        // Ocupan el hueco entre los cuadros inferiores; el ancho del hueco es el
+        // límite (no invaden los cuadros de números). El texto vertical se movió
+        // debajo de Facebook, así que aquí ya no estorba nada.
+        float qrAreaTop = botBoxTop - 2.0f * sY;      // justo bajo la banda
+        float qrAreaBot = botBoxBot + 2.0f * sY;
+        float qrMaxW = (centerR - centerL) - 2.0f * sX;   // QR un poco más anchos
+        float qrBgPad = 0.6f * sF;                         // borde blanco mínimo
+        float qrX, ganQrY = 0f, segQrY;
+        float qrSize;
+        if (mostrarQrGanador) {
+            // Dos QR apilados y centrados verticalmente en la zona.
+            float qrGapV = 5.0f * sY;
+            qrSize = Math.min((qrAreaTop - qrAreaBot - qrGapV) / 2.0f, qrMaxW);
+            qrX = centerCx - qrSize / 2.0f;
+            float qrBlockH = 2.0f * qrSize + qrGapV;
+            float qrBlockTop = qrAreaTop - ((qrAreaTop - qrAreaBot) - qrBlockH) / 2.0f;
+            ganQrY = qrBlockTop - qrSize;
+            segQrY = ganQrY - qrGapV - qrSize;
+        } else {
+            // Un solo QR (seguridad): el mayor que quepa, centrado.
+            qrSize = Math.min(qrAreaTop - qrAreaBot, qrMaxW);
+            qrX = centerCx - qrSize / 2.0f;
+            segQrY = (qrAreaTop + qrAreaBot) / 2.0f - qrSize / 2.0f;
+        }
         if (mostrarQrGanador) {
             try {
                 canvas.saveState();
