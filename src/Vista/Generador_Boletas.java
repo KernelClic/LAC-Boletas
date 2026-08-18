@@ -64,11 +64,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private javax.swing.JLabel lblCifras;
         private javax.swing.JComboBox<String> cmbCifras;
 
-        // Panel de lote: sorteo destino, tamaño del lote y números disponibles.
-        private javax.swing.JTextField txtIdSorteo;
-        private javax.swing.JTextField txtCantidadBoletas;
-        private javax.swing.JLabel lblDisponibles;
-        private javax.swing.JLabel lblAlcance;
 
         /**
          * Creates new form Generador_Boletas
@@ -119,61 +114,22 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 int num = 0;
                 int cifra = 0;
 
-                // ── Validación del lote ──────────────────────────────────────
-                int idSorteo = getIdSorteo();
-                if (idSorteo < 0) {
-                        JOptionPane.showMessageDialog(this,
-                                        "Indique un ID de sorteo valido en el panel 'Lote y control de numeros'.",
-                                        "Sorteo invalido", JOptionPane.WARNING_MESSAGE);
-                        return null;
-                }
-                int cantidadBoletas = getCantidadBoletas();
-                if (cantidadBoletas <= 0) {
-                        JOptionPane.showMessageDialog(this,
-                                        "Indique cuantas boletas desea imprimir (mayor que cero).",
-                                        "Cantidad invalida", JOptionPane.WARNING_MESSAGE);
-                        return null;
-                }
-
-                // ── Universo disponible = todos los números MENOS los ya emitidos ──
-                // Antes se rebarajaba el universo completo en cada ejecución y no se
-                // guardaba nada, así que cada PDF repetía los números del anterior.
+                // Cada generación parte de cero: se borra el contenido anterior de la
+                // base local y se rebaraja el universo completo. Los números no se
+                // repiten DENTRO de la generación porque el barajado Fisher-Yates
+                // recorre una única vez cada valor de 0..MAXNUMBER-1.
+                int idSorteo = getIdSorteoConfigurado();
                 Controlador.ConectorSqlite db = abrirConectorLocal();
                 if (db == null) {
                         return null;
                 }
+                db.limpiarTabla();
 
                 ArrayList<String> stmpNum = new ArrayList<>();
-                java.util.List<Integer> consumidos = new java.util.ArrayList<>();
                 try {
-                        java.util.Set<Integer> usados = db.numerosConsumidos(idSorteo, cifras);
-                        int disponibles = MAXNUMBER - usados.size();
-                        int requeridos = cantidadBoletas * nroOpor;
-
-                        if (requeridos > disponibles) {
-                                db.Cerrar();
-                                JOptionPane.showMessageDialog(this,
-                                                "No hay numeros suficientes para este lote.\n\n"
-                                                                + "Sorteo: " + idSorteo + "   (" + cifras + " cifras)\n"
-                                                                + "Universo: " + MAXNUMBER + "\n"
-                                                                + "Ya emitidos: " + usados.size() + "\n"
-                                                                + "Disponibles: " + disponibles + "\n"
-                                                                + "Requeridos: " + requeridos
-                                                                + "  (" + cantidadBoletas + " boletas x " + nroOpor
-                                                                + " oportunidades)\n\n"
-                                                                + "Reduzca la cantidad de boletas (maximo "
-                                                                + (disponibles / nroOpor) + ") o abra un sorteo nuevo.",
-                                                "Universo agotado", JOptionPane.ERROR_MESSAGE);
-                                return null;
-                        }
-
-                        // Complemento del universo, barajado con Fisher-Yates.
-                        int[] pool = new int[disponibles];
-                        int p = 0;
+                        int[] pool = new int[MAXNUMBER];
                         for (int i = 0; i < MAXNUMBER; i++) {
-                                if (!usados.contains(i)) {
-                                        pool[p++] = i;
-                                }
+                                pool[i] = i;
                         }
                         for (int i = pool.length - 1; i > 0; i--) {
                                 int j = (int) (Math.random() * (i + 1));
@@ -259,26 +215,12 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 // patrón; al recortar el lote, esos quedan fuera de lo impreso.
                 ArrayList<String> stmpTodos = seleccionarCifras(stmpNum, num, cifra);
 
-                // ── Recortar al lote pedido y RESERVAR esos números ───────────
-                int requeridos = cantidadBoletas * nroOpor;
-                ArrayList<String> stmpPrint = new ArrayList<>(stmpTodos.subList(0, requeridos));
-                int[] tmpNum = new int[requeridos];
-                for (int i = 0; i < requeridos; i++) {
+                // Se imprime el universo completo: la cantidad de boletas la fija la
+                // configuración (cifras y oportunidades), no un tamaño de lote.
+                ArrayList<String> stmpPrint = stmpTodos;
+                int[] tmpNum = new int[stmpPrint.size()];
+                for (int i = 0; i < tmpNum.length; i++) {
                         tmpNum[i] = Integer.parseInt(stmpPrint.get(i));
-                        consumidos.add(tmpNum[i]);
-                }
-
-                // Se reserva ANTES de dibujar: si el PDF falla, se pierde el bloque,
-                // que siempre es preferible a reimprimir números ya emitidos.
-                int reservados = db.registrarConsumidos(idSorteo, cifras, consumidos);
-                if (reservados != requeridos) {
-                        db.Cerrar();
-                        JOptionPane.showMessageDialog(this,
-                                        "No se pudieron reservar los numeros del lote.\n"
-                                                        + "Esperados: " + requeridos + ", reservados: " + reservados
-                                                        + "\n\nNo se genero ningun PDF.",
-                                        "Error de reserva", JOptionPane.ERROR_MESSAGE);
-                        return null;
                 }
 
                 // El índice del combo NO es el tipo de reporte: el combo solo muestra
@@ -287,13 +229,55 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 int tipoReporte = (sel >= 0 && sel < reportesVisibles.size())
                                 ? reportesVisibles.get(sel) : 0;
                 try {
-                        writePDF(nroOpor, stmpPrint, cantidadBoletas, tipoReporte, idSorteo, db);
+                        writePDF(nroOpor, stmpPrint, tipoReporte, idSorteo, db);
                 } finally {
                         db.Cerrar();
-                        actualizarDisponibles();
                 }
 
                 return tmpNum;
+        }
+
+        /**
+         * Sorteo destino para el registro local y la sincronización. Se toma de
+         * {@code boletas.sorteo.id} en la configuración; por defecto 1.
+         */
+        private int getIdSorteoConfigurado() {
+                java.util.Properties props = new java.util.Properties();
+                java.io.File f = new java.io.File(rutaConfig());
+                if (f.exists()) {
+                        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                                props.load(in);
+                        } catch (Exception ex) {
+                                System.err.println("[CONFIG] No se pudo leer " + f + ": " + ex.getMessage());
+                        }
+                }
+                try {
+                        return Integer.parseInt(props.getProperty("boletas.sorteo.id", "1").trim());
+                } catch (NumberFormatException e) {
+                        return 1;
+                }
+        }
+
+        /**
+         * Abre la base local con la MISMA URL que usa el demonio de sincronización
+         * y se asegura de que exista la tabla.
+         */
+        private Controlador.ConectorSqlite abrirConectorLocal() {
+                String url;
+                try {
+                        url = Controlador.BoletaCloudSync.Config.fromSystem().getSqliteUrl();
+                } catch (RuntimeException e) {
+                        url = "jdbc:sqlite:db/boletas.db";
+                }
+                Controlador.ConectorSqlite db = new Controlador.ConectorSqlite(url);
+                if (db.getConexion() == null) {
+                        JOptionPane.showMessageDialog(this,
+                                        "No se pudo abrir la base local:\n" + url + "\n\n" + db.getError(),
+                                        "Error de base de datos", JOptionPane.ERROR_MESSAGE);
+                        return null;
+                }
+                db.inicializarEsquema();
+                return db;
         }
 
         public ArrayList<String> seleccionarCifras(ArrayList<String> stmpNum, int num, int cifra) {
@@ -398,9 +382,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
                 // ── Inicializar panel de Rangos de Premio ──
                 inicializarPanelPlazaSorteo();
-
-                // ── Panel de lote y control de números consumidos ──
-                inicializarPanelLote();
 
                 // ── Control protegido del QR Ganador (oculto por defecto) ──
                 inicializarControlQrGanador();
@@ -851,193 +832,6 @@ public class Generador_Boletas extends javax.swing.JFrame {
         }
 
 
-        // ════════════════════════════════════════════════════════════════════
-        //  Lote de emisión y control de números consumidos
-        // ════════════════════════════════════════════════════════════════════
-
-        /**
-         * Panel con el sorteo destino y el tamaño del lote. Antes el generador
-         * imprimía SIEMPRE hasta agotar el universo completo de números (no había
-         * forma de pedir menos), y como no guardaba lo emitido, la siguiente
-         * generación repetía los mismos números al 100%.
-         */
-        private void inicializarPanelLote() {
-                JPanel panelLote = new JPanel();
-                panelLote.setBorder(BorderFactory.createTitledBorder(
-                                BorderFactory.createLineBorder(new Color(153, 51, 0), 2),
-                                "Sorteo y cantidad a imprimir",
-                                javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
-                                javax.swing.border.TitledBorder.DEFAULT_POSITION,
-                                new Font("Cantarell", Font.BOLD, 13),
-                                new Color(153, 51, 0)));
-                panelLote.setLayout(null);
-
-                panelLote.setToolTipText("<html>Cada numero se entrega una sola vez por sorteo.<br>"
-                                + "Al generar, los numeros usados quedan registrados y no vuelven a salir<br>"
-                                + "en las siguientes impresiones de ese mismo sorteo.</html>");
-
-                JLabel lblSorteo = new JLabel("Sorteo No.");
-                lblSorteo.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblSorteo.setBounds(12, 22, 80, 25);
-                panelLote.add(lblSorteo);
-
-                txtIdSorteo = new JTextField("1");
-                txtIdSorteo.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtIdSorteo.setBounds(95, 22, 60, 25);
-                txtIdSorteo.setToolTipText("Cambie de sorteo para volver a disponer de todos los numeros.");
-                panelLote.add(txtIdSorteo);
-
-                JLabel lblCant = new JLabel("Boletas a imprimir");
-                lblCant.setFont(new Font("Cantarell", Font.BOLD, 12));
-                lblCant.setBounds(180, 22, 140, 25);
-                panelLote.add(lblCant);
-
-                txtCantidadBoletas = new JTextField("500");
-                txtCantidadBoletas.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtCantidadBoletas.setBounds(325, 22, 60, 25);
-                txtCantidadBoletas.setToolTipText("Cuantas boletas lleva este lote (antes se imprimia "
-                                + "siempre hasta agotar el sorteo).");
-                panelLote.add(txtCantidadBoletas);
-
-                lblDisponibles = new JLabel(" ");
-                lblDisponibles.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                lblDisponibles.setBounds(12, 50, 440, 20);
-                panelLote.add(lblDisponibles);
-
-                lblAlcance = new JLabel(" ");
-                lblAlcance.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                lblAlcance.setBounds(12, 70, 440, 20);
-                panelLote.add(lblAlcance);
-
-                // Se refresca solo: al escribir el sorteo o la cantidad no hay que
-                // pulsar ningun boton (antes habia que acordarse de "Consultar").
-                javax.swing.event.DocumentListener refresco = new javax.swing.event.DocumentListener() {
-                        @Override
-                        public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                                actualizarDisponibles();
-                        }
-
-                        @Override
-                        public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                                actualizarDisponibles();
-                        }
-
-                        @Override
-                        public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                                actualizarDisponibles();
-                        }
-                };
-                txtIdSorteo.getDocument().addDocumentListener(refresco);
-                txtCantidadBoletas.getDocument().addDocumentListener(refresco);
-
-                getContentPane().add(panelLote,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 645, 462, 100));
-        }
-
-        /** ID del sorteo destino; los números consumidos se llevan por sorteo. */
-        private int getIdSorteo() {
-                try {
-                        return Integer.parseInt(txtIdSorteo.getText().trim());
-                } catch (RuntimeException e) {
-                        return -1;
-                }
-        }
-
-        /** Cantidad de boletas del lote a imprimir. */
-        private int getCantidadBoletas() {
-                try {
-                        return Integer.parseInt(txtCantidadBoletas.getText().trim());
-                } catch (RuntimeException e) {
-                        return -1;
-                }
-        }
-
-        /**
-         * Abre la base local usando la MISMA URL que el demonio de sincronización,
-         * y se asegura de que el esquema exista.
-         */
-        private Controlador.ConectorSqlite abrirConectorLocal() {
-                String url;
-                try {
-                        url = Controlador.BoletaCloudSync.Config.fromSystem().getSqliteUrl();
-                } catch (RuntimeException e) {
-                        url = "jdbc:sqlite:db/boletas.db";
-                }
-                Controlador.ConectorSqlite db = new Controlador.ConectorSqlite(url);
-                if (db.getConexion() == null) {
-                        JOptionPane.showMessageDialog(this,
-                                        "No se pudo abrir la base local:\n" + url + "\n\n" + db.getError(),
-                                        "Error de base de datos", JOptionPane.ERROR_MESSAGE);
-                        return null;
-                }
-                db.inicializarEsquema();
-                return db;
-        }
-
-        /**
-         * Refresca solo (sin botón) el estado del sorteo: cuántos números quedan
-         * sin emitir y para cuántas boletas alcanzan. Se dispara al escribir el
-         * sorteo o la cantidad, al cambiar de reporte y al terminar de generar.
-         */
-        private void actualizarDisponibles() {
-                if (lblDisponibles == null || lblAlcance == null) {
-                        return; // aún se está construyendo la ventana
-                }
-                int idSorteo = getIdSorteo();
-                if (idSorteo < 0) {
-                        lblDisponibles.setText("Indique el numero de sorteo.");
-                        lblAlcance.setText(" ");
-                        return;
-                }
-
-                int cifras = getCifras();
-                int universo = (int) Math.pow(10, cifras);
-                int opor = getOportunidades();
-
-                Controlador.ConectorSqlite db = abrirConectorLocal();
-                if (db == null) {
-                        return;
-                }
-                try {
-                        int usados = db.contarConsumidos(idSorteo, cifras);
-                        int libres = universo - usados;
-                        lblDisponibles.setText("Quedan " + formatoMiles(libres) + " de "
-                                        + formatoMiles(universo) + " numeros sin entregar en este sorteo.");
-
-                        if (opor <= 0) {
-                                lblAlcance.setText(" ");
-                                return;
-                        }
-                        int maxBoletas = libres / opor;
-                        int pedidas = getCantidadBoletas();
-                        String alcance = "Alcanzan para " + formatoMiles(maxBoletas)
-                                        + " boletas de " + opor + " oportunidades.";
-                        if (pedidas > maxBoletas) {
-                                lblAlcance.setForeground(new Color(153, 0, 0));
-                                alcance += "  Esta pidiendo " + formatoMiles(pedidas) + ".";
-                        } else {
-                                lblAlcance.setForeground(new Color(0, 100, 0));
-                        }
-                        lblAlcance.setText(alcance);
-                } finally {
-                        db.Cerrar();
-                }
-        }
-
-        /** Oportunidades por boleta según el campo de la pantalla. */
-        private int getOportunidades() {
-                try {
-                        return Integer.parseInt(txtOportunidades.getText().trim());
-                } catch (RuntimeException e) {
-                        return (reporteSeleccionadoId() == 4) ? 20 : 10;
-                }
-        }
-
-        /** Separador de miles, para que 100000 se lea como 100.000. */
-        private String formatoMiles(int valor) {
-                return String.format("%,d", valor).replace(',', '.');
-        }
-
         /**
          * Retorna el mensaje de premio para un número de boleta según los rangos locales.
          * Si cae en varios rangos, gana el de mayor prioridad (número mayor).
@@ -1062,17 +856,15 @@ public class Generador_Boletas extends javax.swing.JFrame {
         /**
          * Genera el PDF de boletas.
          * 
-         * @param opor               Oportunidades por boleta
-         * @param stmpPrint          Números ya reservados para este lote
-         * @param boletasSolicitadas Cuántas boletas imprimir (antes se imprimía
-         *                           siempre hasta agotar el universo completo)
-         * @param tipoReporte        0 = 12 boletas (carta horizontal 3x4),
-         *                           1 = 21 boletas (carta vertical 3x7),
-         *                           2 = 15 boletas (carta vertical 3x5)
-         * @param idSorteo           Sorteo destino, para el registro local
-         * @param db                 Conexión local abierta (no se cierra aquí)
+         * @param opor        Oportunidades por boleta
+         * @param stmpPrint   Universo de números barajado para esta generación
+         * @param tipoReporte 0 = 12 boletas (carta horizontal 3x4),
+         *                    1 = 21 boletas (carta vertical 3x7),
+         *                    2 = 15 boletas (carta vertical 3x5)
+         * @param idSorteo    Sorteo destino, para el registro local
+         * @param db          Conexión local abierta (no se cierra aquí)
          */
-        public void writePDF(int opor, ArrayList<String> stmpPrint, int boletasSolicitadas, int tipoReporte,
+        public void writePDF(int opor, ArrayList<String> stmpPrint, int tipoReporte,
                         int idSorteo, Controlador.ConectorSqlite db)
                         throws FileNotFoundException, IOException, BadElementException {
                 int x, y, xi, yi, alto, ancho, paso_x, paso_y, index, col, fil;
@@ -1326,11 +1118,8 @@ public class Generador_Boletas extends javax.swing.JFrame {
                                         }
                                 }
 
-                                // Detener al completar el lote pedido. Antes se imprimía
-                                // hasta agotar el universo entero (index >= MAXNUMBER), que
-                                // con 20 oportunidades consumía los 10.000 números en un
-                                // solo PDF y dejaba el sorteo sin números para el siguiente.
-                                if (totalBoletas >= boletasSolicitadas || index >= stmpPrint.size()) {
+                                // Detener cuando se consumió el universo completo.
+                                if (index >= MAXNUMBER) {
                                         band = false;
                                 }
 
@@ -1343,7 +1132,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         JOptionPane.showMessageDialog(this,
                                         "El archivo PDF [ " + this.txtFilePDF.getText() + " ] fue generado con exito.\n\n"
                                                         + "Boletas generadas: " + totalBoletas + "\n"
-                                                        + "Numeros consumidos: " + (totalBoletas * opor)
+                                                        + "Numeros usados: " + (totalBoletas * opor) + " de " + MAXNUMBER
                                                         + " (sorteo " + idSorteo + ")\n"
                                                         + "Registradas para sincronizar: " + registradas,
                                         "Informacion",
@@ -2281,14 +2070,19 @@ public class Generador_Boletas extends javax.swing.JFrame {
                         if (cmbCifras != null) {
                                 cmbCifras.setSelectedIndex(0); // 4 cifras (10.000 números)
                         }
-                } else if (txtOportunidades != null && getOportunidades() > 10) {
+                } else if (txtOportunidades != null) {
                         // Los reportes 0/1/2 admiten hasta 10 oportunidades: si se venía
                         // del reporte de cuadrantes, el 20 dejaría bloqueado el Generar.
-                        txtOportunidades.setText("10");
+                        int actuales;
+                        try {
+                                actuales = Integer.parseInt(txtOportunidades.getText().trim());
+                        } catch (NumberFormatException e) {
+                                actuales = 10;
+                        }
+                        if (actuales > 10) {
+                                txtOportunidades.setText("10");
+                        }
                 }
-
-                // El universo depende del reporte, así que se recalcula lo disponible.
-                actualizarDisponibles();
         }
 
         /** Selecciona el formato del consecutivo de boleta (4 ó 5 dígitos). */

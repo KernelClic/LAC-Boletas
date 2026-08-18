@@ -61,14 +61,20 @@ public class ConectorSqlite {
         }
     }
 
+    /**
+     * Deja la base local vacía. Se invoca al inicio de cada generación: cada
+     * tirada parte de cero y la base refleja siempre la última generada.
+     */
     public void limpiarTabla() {
         if (this.conexion != null) {
             try {
-                // Borrar todos los registros de la tabla de sincronización
                 try (Statement stmt = this.conexion.createStatement()) {
                     stmt.executeUpdate("DELETE FROM boleta_local_sync");
                     stmt.executeUpdate("DELETE FROM sqlite_sequence WHERE name='boleta_local_sync'");
-                    System.out.println("[SQLite] Tabla boleta_local_sync limpiada y secuencia reiniciada.");
+                    // Tabla de una version anterior que llevaba numeros consumidos
+                    // entre generaciones; si existe, tambien se vacia.
+                    stmt.executeUpdate("DROP TABLE IF EXISTS numero_consumido");
+                    System.out.println("[SQLite] Base local vaciada: nueva generacion desde cero.");
                 }
             } catch (SQLException e) {
                 System.err.println("[SQLite] Error al limpiar tabla local: " + e.getMessage());
@@ -97,19 +103,9 @@ public class ConectorSqlite {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Control de números consumidos por sorteo
-    //
-    // Sin este registro el generador rebaraja el universo completo en cada
-    // ejecución y vuelve a emitir los mismos números (ver numerosConsumidos).
-    // La clave primaria (id_sorteo, cifras, numero) hace IMPOSIBLE emitir dos
-    // veces el mismo número aunque el código tenga un error: el INSERT falla.
-    //
-    // Se distingue por 'cifras' porque el universo de 4 dígitos y el de 5 son
-    // espacios distintos: el 123 es "0123" en uno y "00123" en el otro.
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Crea las tablas locales si no existen. Es idempotente. */
+    /**
+     * Crea la tabla local si no existe. Es idempotente.
+     */
     public boolean inicializarEsquema() {
         if (this.conexion == null) {
             return false;
@@ -125,115 +121,11 @@ public class ConectorSqlite {
                             + " sync_status TEXT DEFAULT 'PENDIENTE_SYNC',"
                             + " fecha_sync TEXT,"
                             + " numeros_oportunidades TEXT)");
-            stmt.executeUpdate(
-                    "CREATE TABLE IF NOT EXISTS numero_consumido ("
-                            + " id_sorteo INTEGER NOT NULL,"
-                            + " cifras INTEGER NOT NULL,"
-                            + " numero INTEGER NOT NULL,"
-                            + " fecha TEXT DEFAULT (datetime('now')),"
-                            + " PRIMARY KEY (id_sorteo, cifras, numero))");
             return true;
         } catch (SQLException e) {
             this.error = e.getMessage();
             System.err.println("[SQLite] Error al crear el esquema local: " + e.getMessage());
             return false;
-        }
-    }
-
-    /** Números ya emitidos para un sorteo y un tamaño de universo dado. */
-    public java.util.Set<Integer> numerosConsumidos(int idSorteo, int cifras) {
-        java.util.Set<Integer> usados = new java.util.HashSet<>();
-        if (this.conexion == null) {
-            return usados;
-        }
-        String sql = "SELECT numero FROM numero_consumido WHERE id_sorteo=? AND cifras=?";
-        try (PreparedStatement pstmt = this.conexion.prepareStatement(sql)) {
-            pstmt.setInt(1, idSorteo);
-            pstmt.setInt(2, cifras);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    usados.add(rs.getInt(1));
-                }
-            }
-            System.out.println("[SQLite] Consumidos previos: " + usados.size()
-                    + " (idSorteo=" + idSorteo + ", cifras=" + cifras + ")");
-        } catch (SQLException e) {
-            this.error = e.getMessage();
-            System.err.println("[SQLite] Error al leer numeros consumidos: " + e.getMessage());
-        }
-        return usados;
-    }
-
-    /**
-     * Cuántos números lleva emitidos un sorteo. Es una consulta barata (usa la
-     * clave primaria) pensada para refrescar la pantalla mientras se escribe,
-     * sin traer la lista completa a memoria.
-     */
-    public int contarConsumidos(int idSorteo, int cifras) {
-        if (this.conexion == null) {
-            return 0;
-        }
-        String sql = "SELECT COUNT(*) FROM numero_consumido WHERE id_sorteo=? AND cifras=?";
-        try (PreparedStatement pstmt = this.conexion.prepareStatement(sql)) {
-            pstmt.setInt(1, idSorteo);
-            pstmt.setInt(2, cifras);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next() ? rs.getInt(1) : 0;
-            }
-        } catch (SQLException e) {
-            this.error = e.getMessage();
-            System.err.println("[SQLite] Error al contar numeros consumidos: " + e.getMessage());
-            return 0;
-        }
-    }
-
-    /**
-     * Reserva los números del lote ANTES de generar el PDF, en una sola
-     * transacción. Si algo falla después, los números quedan quemados: es
-     * preferible perder un bloque a reimprimirlo.
-     *
-     * @return cantidad de números efectivamente reservados, o -1 si falló.
-     */
-    public int registrarConsumidos(int idSorteo, int cifras, java.util.List<Integer> numeros) {
-        if (this.conexion == null || numeros == null || numeros.isEmpty()) {
-            return 0;
-        }
-        String sql = "INSERT INTO numero_consumido(id_sorteo, cifras, numero) VALUES(?,?,?)";
-        boolean autoCommitPrevio = true;
-        try {
-            autoCommitPrevio = this.conexion.getAutoCommit();
-            this.conexion.setAutoCommit(false);
-            int total = 0;
-            try (PreparedStatement pstmt = this.conexion.prepareStatement(sql)) {
-                for (Integer numero : numeros) {
-                    pstmt.setInt(1, idSorteo);
-                    pstmt.setInt(2, cifras);
-                    pstmt.setInt(3, numero);
-                    pstmt.addBatch();
-                }
-                for (int filas : pstmt.executeBatch()) {
-                    if (filas > 0) {
-                        total += filas;
-                    }
-                }
-            }
-            this.conexion.commit();
-            System.out.println("[SQLite] Numeros reservados: " + total
-                    + " (idSorteo=" + idSorteo + ", cifras=" + cifras + ")");
-            return total;
-        } catch (SQLException e) {
-            this.error = e.getMessage();
-            System.err.println("[SQLite] Error al reservar numeros: " + e.getMessage());
-            try {
-                this.conexion.rollback();
-            } catch (SQLException ignore) {
-            }
-            return -1;
-        } finally {
-            try {
-                this.conexion.setAutoCommit(autoCommitPrevio);
-            } catch (SQLException ignore) {
-            }
         }
     }
 
