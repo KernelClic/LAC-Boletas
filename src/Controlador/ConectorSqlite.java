@@ -165,6 +165,29 @@ public class ConectorSqlite {
     }
 
     /**
+     * Cuántos números lleva emitidos un sorteo. Es una consulta barata (usa la
+     * clave primaria) pensada para refrescar la pantalla mientras se escribe,
+     * sin traer la lista completa a memoria.
+     */
+    public int contarConsumidos(int idSorteo, int cifras) {
+        if (this.conexion == null) {
+            return 0;
+        }
+        String sql = "SELECT COUNT(*) FROM numero_consumido WHERE id_sorteo=? AND cifras=?";
+        try (PreparedStatement pstmt = this.conexion.prepareStatement(sql)) {
+            pstmt.setInt(1, idSorteo);
+            pstmt.setInt(2, cifras);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (SQLException e) {
+            this.error = e.getMessage();
+            System.err.println("[SQLite] Error al contar numeros consumidos: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
      * Reserva los números del lote ANTES de generar el PDF, en una sola
      * transacción. Si algo falla después, los números quedan quemados: es
      * preferible perder un bloque a reimprimirlo.

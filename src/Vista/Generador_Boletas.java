@@ -68,6 +68,7 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private javax.swing.JTextField txtIdSorteo;
         private javax.swing.JTextField txtCantidadBoletas;
         private javax.swing.JLabel lblDisponibles;
+        private javax.swing.JLabel lblAlcance;
 
         /**
          * Creates new form Generador_Boletas
@@ -406,6 +407,9 @@ public class Generador_Boletas extends javax.swing.JFrame {
 
                 // ── Combo de reportes: solo los habilitados en la configuración ──
                 reconstruirComboReportes(cargarReportesHabilitados());
+
+                // Deja oportunidades, cifras y formato acordes al reporte inicial.
+                aplicarAjustesDelReporte();
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -745,8 +749,10 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 lblFmt.setBounds(12, 58, 210, 25);
                 panel.add(lblFmt);
 
+                // Solo 4 ó 5 dígitos: con 5 cifras el sorteo llega a 5.000 boletas,
+                // así que un consecutivo de 6 dígitos nunca se usa.
                 cmbFormatoBoleta = new javax.swing.JComboBox<>(new String[] {
-                                "XXXX (4 dígitos)", "XXXXX (5 dígitos)", "XXXXXX (6 dígitos)" });
+                                "XXXX (4 dígitos)", "XXXXX (5 dígitos)" });
                 cmbFormatoBoleta.setBounds(225, 58, 150, 25);
                 panel.add(cmbFormatoBoleta);
 
@@ -859,46 +865,73 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 JPanel panelLote = new JPanel();
                 panelLote.setBorder(BorderFactory.createTitledBorder(
                                 BorderFactory.createLineBorder(new Color(153, 51, 0), 2),
-                                "Lote y control de numeros",
+                                "Sorteo y cantidad a imprimir",
                                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
                                 new Font("Cantarell", Font.BOLD, 13),
                                 new Color(153, 51, 0)));
                 panelLote.setLayout(null);
 
-                JLabel lblSorteo = new JLabel("Sorteo (ID):");
-                lblSorteo.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                lblSorteo.setBounds(12, 25, 80, 25);
+                panelLote.setToolTipText("<html>Cada numero se entrega una sola vez por sorteo.<br>"
+                                + "Al generar, los numeros usados quedan registrados y no vuelven a salir<br>"
+                                + "en las siguientes impresiones de ese mismo sorteo.</html>");
+
+                JLabel lblSorteo = new JLabel("Sorteo No.");
+                lblSorteo.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblSorteo.setBounds(12, 22, 80, 25);
                 panelLote.add(lblSorteo);
 
                 txtIdSorteo = new JTextField("1");
                 txtIdSorteo.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtIdSorteo.setBounds(95, 25, 65, 25);
+                txtIdSorteo.setBounds(95, 22, 60, 25);
+                txtIdSorteo.setToolTipText("Cambie de sorteo para volver a disponer de todos los numeros.");
                 panelLote.add(txtIdSorteo);
 
-                JLabel lblCant = new JLabel("Boletas:");
-                lblCant.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                lblCant.setBounds(175, 25, 60, 25);
+                JLabel lblCant = new JLabel("Boletas a imprimir");
+                lblCant.setFont(new Font("Cantarell", Font.BOLD, 12));
+                lblCant.setBounds(180, 22, 140, 25);
                 panelLote.add(lblCant);
 
                 txtCantidadBoletas = new JTextField("500");
                 txtCantidadBoletas.setFont(new Font("Cantarell", Font.PLAIN, 12));
-                txtCantidadBoletas.setBounds(235, 25, 65, 25);
+                txtCantidadBoletas.setBounds(325, 22, 60, 25);
+                txtCantidadBoletas.setToolTipText("Cuantas boletas lleva este lote (antes se imprimia "
+                                + "siempre hasta agotar el sorteo).");
                 panelLote.add(txtCantidadBoletas);
 
-                JButton btnConsultar = new JButton("Consultar");
-                btnConsultar.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                btnConsultar.setBounds(315, 25, 130, 25);
-                btnConsultar.addActionListener(e -> actualizarDisponibles());
-                panelLote.add(btnConsultar);
-
-                lblDisponibles = new JLabel("Disponibles: (consulte)");
+                lblDisponibles = new JLabel(" ");
                 lblDisponibles.setFont(new Font("Cantarell", Font.PLAIN, 11));
-                lblDisponibles.setBounds(12, 55, 435, 25);
+                lblDisponibles.setBounds(12, 50, 440, 20);
                 panelLote.add(lblDisponibles);
 
+                lblAlcance = new JLabel(" ");
+                lblAlcance.setFont(new Font("Cantarell", Font.PLAIN, 11));
+                lblAlcance.setBounds(12, 70, 440, 20);
+                panelLote.add(lblAlcance);
+
+                // Se refresca solo: al escribir el sorteo o la cantidad no hay que
+                // pulsar ningun boton (antes habia que acordarse de "Consultar").
+                javax.swing.event.DocumentListener refresco = new javax.swing.event.DocumentListener() {
+                        @Override
+                        public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                                actualizarDisponibles();
+                        }
+
+                        @Override
+                        public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                                actualizarDisponibles();
+                        }
+
+                        @Override
+                        public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                                actualizarDisponibles();
+                        }
+                };
+                txtIdSorteo.getDocument().addDocumentListener(refresco);
+                txtCantidadBoletas.getDocument().addDocumentListener(refresco);
+
                 getContentPane().add(panelLote,
-                                new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 645, 462, 95));
+                                new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 645, 462, 100));
         }
 
         /** ID del sorteo destino; los números consumidos se llevan por sorteo. */
@@ -941,29 +974,68 @@ public class Generador_Boletas extends javax.swing.JFrame {
                 return db;
         }
 
-        /** Refresca la etiqueta de números disponibles para el sorteo actual. */
+        /**
+         * Refresca solo (sin botón) el estado del sorteo: cuántos números quedan
+         * sin emitir y para cuántas boletas alcanzan. Se dispara al escribir el
+         * sorteo o la cantidad, al cambiar de reporte y al terminar de generar.
+         */
         private void actualizarDisponibles() {
+                if (lblDisponibles == null || lblAlcance == null) {
+                        return; // aún se está construyendo la ventana
+                }
                 int idSorteo = getIdSorteo();
                 if (idSorteo < 0) {
-                        lblDisponibles.setText("Disponibles: ID de sorteo invalido");
+                        lblDisponibles.setText("Indique el numero de sorteo.");
+                        lblAlcance.setText(" ");
                         return;
                 }
+
                 int cifras = getCifras();
                 int universo = (int) Math.pow(10, cifras);
+                int opor = getOportunidades();
+
                 Controlador.ConectorSqlite db = abrirConectorLocal();
                 if (db == null) {
                         return;
                 }
                 try {
-                        int usados = db.numerosConsumidos(idSorteo, cifras).size();
+                        int usados = db.contarConsumidos(idSorteo, cifras);
                         int libres = universo - usados;
-                        int opor = (reporteSeleccionadoId() == 4) ? 20 : 10;
-                        lblDisponibles.setText("Disponibles: " + libres + " de " + universo
-                                        + " (" + cifras + " cifras) = " + (libres / opor)
-                                        + " boletas de " + opor + " oport.");
+                        lblDisponibles.setText("Quedan " + formatoMiles(libres) + " de "
+                                        + formatoMiles(universo) + " numeros sin entregar en este sorteo.");
+
+                        if (opor <= 0) {
+                                lblAlcance.setText(" ");
+                                return;
+                        }
+                        int maxBoletas = libres / opor;
+                        int pedidas = getCantidadBoletas();
+                        String alcance = "Alcanzan para " + formatoMiles(maxBoletas)
+                                        + " boletas de " + opor + " oportunidades.";
+                        if (pedidas > maxBoletas) {
+                                lblAlcance.setForeground(new Color(153, 0, 0));
+                                alcance += "  Esta pidiendo " + formatoMiles(pedidas) + ".";
+                        } else {
+                                lblAlcance.setForeground(new Color(0, 100, 0));
+                        }
+                        lblAlcance.setText(alcance);
                 } finally {
                         db.Cerrar();
                 }
+        }
+
+        /** Oportunidades por boleta según el campo de la pantalla. */
+        private int getOportunidades() {
+                try {
+                        return Integer.parseInt(txtOportunidades.getText().trim());
+                } catch (RuntimeException e) {
+                        return (reporteSeleccionadoId() == 4) ? 20 : 10;
+                }
+        }
+
+        /** Separador de miles, para que 100000 se lea como 100.000. */
+        private String formatoMiles(int valor) {
+                return String.format("%,d", valor).replace(',', '.');
         }
 
         /**
@@ -2177,15 +2249,58 @@ public class Generador_Boletas extends javax.swing.JFrame {
         private void jComboBoxReporteActionPerformed(java.awt.event.ActionEvent evt) {// GEN-FIRST:event_jComboBoxReporteActionPerformed
                 // Al elegir el reporte de CUADRANTES (tipo 4), rellenar los campos
                 // de texto para que la boleta quede de acuerdo a la imagen de referencia.
-                if (reporteSeleccionadoId() == 4) {
-                        aplicarTextosCuadrante();
-                }
-                // El universo depende del reporte (el tipo 4 fuerza 5 cifras),
-                // así que se recalculan los disponibles al cambiar de reporte.
-                if (lblDisponibles != null) {
-                        actualizarDisponibles();
-                }
+                aplicarAjustesDelReporte();
         }// GEN-LAST:event_jComboBoxReporteActionPerformed
+
+        /**
+         * Deja la pantalla coherente con el reporte elegido. Cada reporte tiene
+         * un número fijo de oportunidades por boleta y, en consecuencia, un
+         * tamaño de universo y un formato de consecutivo que le corresponden;
+         * antes había que acordarse de ajustarlos a mano.
+         *
+         *   Reporte 3 (8 boletas, 10 oport.) → 4 cifras → consecutivo de 4 dígitos
+         *   Reporte 4 (8 boletas, 20 oport.) → 5 cifras → consecutivo de 5 dígitos
+         */
+        private void aplicarAjustesDelReporte() {
+                int id = reporteSeleccionadoId();
+
+                if (id == 4) {
+                        aplicarTextosCuadrante();
+                        if (txtOportunidades != null) {
+                                txtOportunidades.setText("20");
+                        }
+                        seleccionarFormatoBoleta(5);
+                        if (cmbCifras != null) {
+                                cmbCifras.setSelectedIndex(1); // 5 cifras (100.000 números)
+                        }
+                } else if (id == 3) {
+                        if (txtOportunidades != null) {
+                                txtOportunidades.setText("10");
+                        }
+                        seleccionarFormatoBoleta(4);
+                        if (cmbCifras != null) {
+                                cmbCifras.setSelectedIndex(0); // 4 cifras (10.000 números)
+                        }
+                } else if (txtOportunidades != null && getOportunidades() > 10) {
+                        // Los reportes 0/1/2 admiten hasta 10 oportunidades: si se venía
+                        // del reporte de cuadrantes, el 20 dejaría bloqueado el Generar.
+                        txtOportunidades.setText("10");
+                }
+
+                // El universo depende del reporte, así que se recalcula lo disponible.
+                actualizarDisponibles();
+        }
+
+        /** Selecciona el formato del consecutivo de boleta (4 ó 5 dígitos). */
+        private void seleccionarFormatoBoleta(int digitos) {
+                if (cmbFormatoBoleta == null) {
+                        return;
+                }
+                int idx = digitos - 4; // 4 dígitos → 0, 5 dígitos → 1
+                if (idx >= 0 && idx < cmbFormatoBoleta.getItemCount()) {
+                        cmbFormatoBoleta.setSelectedIndex(idx);
+                }
+        }
 
         /**
          * Rellena los campos de texto con los valores de la boleta de CUADRANTES
