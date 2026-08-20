@@ -27,7 +27,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.logging.Level;
@@ -131,7 +130,7 @@ extends JFrame {
     }
 
     public int[] generarNumerosAleatorios(int nroOpor) throws IOException, FileNotFoundException, BadElementException {
-        int[] tmpNum = new int[100010];
+        int[] tmpNum = new int[this.MAXNUMBER];
         int saltoxColumna = (int)Math.ceil(33333.0);
         int saltoxBoleta = (int)Math.ceil(saltoxColumna / nroOpor);
         int saltoxFila = (int)Math.ceil(saltoxBoleta / 2);
@@ -140,25 +139,19 @@ extends JFrame {
         ArrayList<String> stmpNum = new ArrayList<String>();
         int cifra = 0;
         Random random = new Random();
-        HashSet<Integer> numeros = new HashSet<Integer>();
-        while (numeros.size() < 100000) {
-            numeros.add(random.nextInt(100000));
-        }
-        Iterator iter = numeros.iterator();
-        int index = 0;
-        while (iter.hasNext()) {
-            tmpNum[index++] = (Integer)iter.next();
-        }
-        ArrayList<Integer> lista = new ArrayList<Integer>();
-        for (int numero : tmpNum) {
+        // Baraja los MAXNUMBER numeros posibles (00000..99999), cada uno una sola vez.
+        // El arreglo debe medir exactamente MAXNUMBER: si sobran posiciones quedan en
+        // cero, entran a la baraja y el 00000 termina repetido en varias boletas.
+        ArrayList<Integer> lista = new ArrayList<Integer>(this.MAXNUMBER);
+        for (int numero = 0; numero < this.MAXNUMBER; ++numero) {
             lista.add(numero);
         }
-        Collections.shuffle(lista);
-        index = 0;
+        Collections.shuffle(lista, random);
+        int index = 0;
         for (int numero : lista) {
             tmpNum[index++] = numero;
         }
-        for (int i = 0; i < 100000; ++i) {
+        for (int i = 0; i < this.MAXNUMBER; ++i) {
             stmpNum.add(this.formatearNumero(tmpNum[i], 5));
         }
         if (this.C101.isSelected() || this.C102.isSelected() || this.C103.isSelected() || this.C104.isSelected()) {
